@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -34,9 +35,14 @@ export function AuthCard() {
             <p className="text-sm text-muted-foreground">
               {session.user.name} ({session.user.email})
             </p>
-            <Button size="lg" variant="outline" onClick={() => signOut()}>
-              ログアウト
-            </Button>
+            <div className="flex gap-3">
+              <Link href="/calendar" className={buttonVariants({ size: "lg" })}>
+                今日の予定を見る
+              </Link>
+              <Button size="lg" variant="outline" onClick={() => signOut()}>
+                ログアウト
+              </Button>
+            </div>
           </>
         ) : (
           <Button size="lg" onClick={() => signIn("google")}>
