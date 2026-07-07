@@ -35,9 +35,15 @@ export function AuthCard() {
             <p className="text-sm text-muted-foreground">
               {session.user.name} ({session.user.email})
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <Link href="/calendar" className={buttonVariants({ size: "lg" })}>
                 今日の予定を見る
+              </Link>
+              <Link
+                href="/map"
+                className={buttonVariants({ size: "lg", variant: "secondary" })}
+              >
+                地図を見る
               </Link>
               <Button size="lg" variant="outline" onClick={() => signOut()}>
                 ログアウト
