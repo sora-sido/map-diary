@@ -1,0 +1,262 @@
+// Map Diary - Prisma schema
+// 個人利用前提のためマルチテナントRLSは行わない。将来の拡張を見据えて
+// 主要テーブルは最初から用意するが、Step3〜5で実データが入るのは
+// User / CalendarEvent のみ。他は空のまま将来のStepで使用する。
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  googleId           String   @unique
+  email              String   @unique
+  name               String?
+  avatarUrl          String?
+  /// Google OAuthのrefresh token。夜間バッチ等でのCalendar自動同期のために保存する。
+  googleRefreshToken String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  dailyLogs      DailyLog[]
+  locations      Location[]
+  gpsLogs        GpsLog[]
+  calendarEvents CalendarEvent[]
+  photos         Photo[]
+  meetings       Meeting[]
+  diaryEntries   DiaryEntry[]
+  people         Person[]
+  placeVisits    PlaceVisit[]
+  tasks          Task[]
+
+  @@map("users")
+}
+
+model DailyLog {
+  id                  String   @id @default(cuid())
+  userId              String
+  date                DateTime @db.Date
+  weather             String?
+  stepCount           Int?
+  totalDistanceMeters Float?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarEvents CalendarEvent[]
+  photos         Photo[]
+  meetings       Meeting[]
+  diaryEntries   DiaryEntry[]
+  aiSummaries    AiSummary[]
+  placeVisits    PlaceVisit[]
+
+  @@unique([userId, date])
+  @@map("daily_logs")
+}
+
+/// 訪問先として名前が付いた場所(自宅・職場・お店など)。同一地点の重複統合や
+/// 「この場所に過去何回来たか」の空間検索にPostGISのgeographyカラムを使う。
+model Location {
+  id            String                                @id @default(cuid())
+  userId        String
+  name          String
+  address       String?
+  lat           Float
+  lng           Float
+  /// PostGIS geography(Point,4326)。GiSTインデックスはマイグレーションのraw SQLで付与。
+  geog          Unsupported("geography(Point,4326)")?
+  placeType     String?
+  googlePlaceId String?
+  createdAt     DateTime                              @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos      Photo[]
+  meetings    Meeting[]
+  placeVisits PlaceVisit[]
+
+  @@index([userId])
+  @@map("locations")
+}
+
+/// 生のGPS打点。データ量が多くなるためrecordedAtにBRINインデックスを張り、
+/// 90日超のデータは間引き/place_visitsへの集約を将来のバッチで行う想定(docs/design-postgis.md参照)。
+model GpsLog {
+  id         String                                @id @default(cuid())
+  userId     String
+  recordedAt DateTime
+  lat        Float
+  lng        Float
+  geog       Unsupported("geography(Point,4326)")?
+  accuracy   Float?
+  speed      Float?
+  createdAt  DateTime                              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([recordedAt], type: Brin)
+  @@map("gps_logs")
+}
+
+model CalendarEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  dailyLogId    String?
+  googleEventId String   @unique
+  title         String
+  description   String?
+  location      String?
+  startTime     DateTime
+  endTime       DateTime
+  createdAt     DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyLog DailyLog? @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  meetings Meeting[]
+
+  @@index([userId, startTime])
+  @@map("calendar_events")
+}
+
+model Photo {
+  id          String    @id @default(cuid())
+  userId      String
+  dailyLogId  String?
+  locationId  String?
+  storagePath String
+  takenAt     DateTime?
+  lat         Float?
+  lng         Float?
+  exifJson    Json?
+  createdAt   DateTime  @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyLog DailyLog? @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, takenAt])
+  @@map("photos")
+}
+
+model Meeting {
+  id              String    @id @default(cuid())
+  userId          String
+  dailyLogId      String?
+  locationId      String?
+  calendarEventId String?
+  title           String
+  startTime       DateTime
+  endTime         DateTime?
+  createdAt       DateTime  @default(now())
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyLog      DailyLog?          @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  location      Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  calendarEvent CalendarEvent?     @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  transcript    MeetingTranscript?
+  tasks         Task[]
+
+  @@index([userId, startTime])
+  @@map("meetings")
+}
+
+/// 音声書き起こしはプライバシー/法的リスクが高いためStep9以降に実装。
+/// テーブルは受け皿として先に用意し、consentGiven/retentionExpiresAtで
+/// 同意状況と削除期限を管理する(docs/design-audio-consent.md参照)。
+model MeetingTranscript {
+  id                 String    @id @default(cuid())
+  meetingId          String    @unique
+  rawText            String?
+  consentGiven       Boolean   @default(false)
+  retentionExpiresAt DateTime?
+  createdAt          DateTime  @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_transcripts")
+}
+
+model DiaryEntry {
+  id              String   @id @default(cuid())
+  userId          String
+  dailyLogId      String?
+  contentMarkdown String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyLog DailyLog? @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+
+  @@map("diary_entries")
+}
+
+/// 夜間バッチのAI要約結果。呼び出し頻度・トークン量・キャッシュ方針は
+/// docs/design-ai-cost.md参照(Step7以降実装)。
+model AiSummary {
+  id          String   @id @default(cuid())
+  dailyLogId  String
+  summaryText String
+  keywords    String[]
+  sentiment   String?
+  model       String?
+  tokenUsage  Int?
+  createdAt   DateTime @default(now())
+
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+
+  @@map("ai_summaries")
+}
+
+/// 会話相手の整理(将来の「人ページ」用)。今回のセッションでは設計のみで未実装。
+model Person {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("people")
+}
+
+/// GPSログから集約された滞在記録。「この場所に何回来たか」等の空間検索の
+/// 主なクエリ対象になる想定。
+model PlaceVisit {
+  id              String                                @id @default(cuid())
+  userId          String
+  locationId      String
+  dailyLogId      String?
+  arrivedAt       DateTime
+  departedAt      DateTime?
+  durationMinutes Int?
+  geog            Unsupported("geography(Point,4326)")?
+  createdAt       DateTime                              @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  dailyLog DailyLog? @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+
+  @@index([userId, arrivedAt])
+  @@map("place_visits")
+}
+
+model Task {
+  id        String    @id @default(cuid())
+  userId    String
+  meetingId String?
+  title     String
+  done      Boolean   @default(false)
+  dueDate   DateTime?
+  createdAt DateTime  @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@map("tasks")
+}
