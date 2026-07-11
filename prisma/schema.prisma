@@ -74,10 +74,11 @@ model Location {
   googlePlaceId String?
   createdAt     DateTime                              @default(now())
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  photos      Photo[]
-  meetings    Meeting[]
-  placeVisits PlaceVisit[]
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos       Photo[]
+  meetings     Meeting[]
+  placeVisits  PlaceVisit[]
+  diaryEntries DiaryEntry[]
 
   @@index([userId])
   @@map("locations")
@@ -181,17 +182,22 @@ model MeetingTranscript {
   @@map("meeting_transcripts")
 }
 
+/// 日単位の日記に加えて、場所(Location)単位のメモとしても使う。
+/// 場所メモはlocationIdを設定し、ユーザー×場所ごとに最新1件を編集し続ける運用とする。
 model DiaryEntry {
   id              String   @id @default(cuid())
   userId          String
   dailyLogId      String?
+  locationId      String?
   contentMarkdown String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   dailyLog DailyLog? @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
+  @@index([userId, locationId])
   @@map("diary_entries")
 }
 

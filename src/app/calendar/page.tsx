@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+export const dynamic = "force-dynamic";
+
 function formatTime(date: Date) {
   return date.toLocaleTimeString("ja-JP", {
     hour: "2-digit",
