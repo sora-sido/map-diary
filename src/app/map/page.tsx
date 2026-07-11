@@ -1,8 +1,11 @@
+import Image from "next/image";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { syncPlaceVisits } from "@/lib/placeVisits";
+import { getTodayPhotos } from "@/lib/photos";
 import { MapView, type MapStay, type MapTrackPoint } from "@/components/map-view";
 import { GpsTracker } from "@/components/gps-tracker";
+import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { dummyStays, dummyTrackPoints } from "@/lib/fixtures/dummy-route";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +52,8 @@ export default async function MapPage() {
     ? { lat: stays[0].lat, lng: stays[0].lng }
     : { lat: 35.68, lng: 139.75 };
 
+  const photos = session?.user?.id ? await getTodayPhotos(session.user.id) : [];
+
   return (
     <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-6 py-16">
       <div>
@@ -74,6 +79,30 @@ export default async function MapPage() {
         center={center}
         editableNotes={!usingDummy}
       />
+
+      {session?.user?.id && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">今日の写真</h2>
+          <PhotoPickerButton />
+          {photos.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {photos.map((photo) =>
+                photo.url ? (
+                  <Image
+                    key={photo.id}
+                    src={photo.url}
+                    alt=""
+                    width={120}
+                    height={120}
+                    unoptimized
+                    className="h-28 w-28 rounded-lg object-cover"
+                  />
+                ) : null,
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
