@@ -67,7 +67,7 @@ export function GpsTracker() {
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      <div className="flex items-center gap-2 rounded-full bg-white/90 py-1.5 pr-1.5 pl-4 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+      <div className="flex items-center gap-2 rounded-full bg-white/70 py-1.5 pr-1.5 pl-4 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
         <span className="text-sm font-medium text-foreground">
           {tracking ? `記録中 ${pointCount}` : "記録"}
         </span>
@@ -93,7 +93,7 @@ export function GpsTracker() {
         )}
       </div>
       {error && (
-        <span className="max-w-56 rounded-lg bg-white/90 px-3 py-1.5 text-right text-xs text-destructive shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+        <span className="max-w-56 rounded-lg bg-white/70 px-3 py-1.5 text-right text-xs text-destructive shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
           {error}
         </span>
       )}

@@ -15,13 +15,16 @@ export function AccountMenu() {
 
   return (
     <Popover>
-      <PopoverTrigger className="rounded-full shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+      <PopoverTrigger className="rounded-full shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
         <Avatar className="size-9">
           <AvatarImage src={session.user.image ?? undefined} />
           <AvatarFallback>{session.user.name?.[0]}</AvatarFallback>
         </Avatar>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 p-3">
+      <PopoverContent
+        align="start"
+        className="w-56 border-none bg-white/80 p-3 shadow-xl ring-1 ring-white/60 backdrop-blur-xl"
+      >
         <p className="mb-0.5 text-sm font-medium">{session.user.name}</p>
         <p className="mb-3 text-xs text-muted-foreground">
           {session.user.email}

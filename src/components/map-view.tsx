@@ -260,11 +260,11 @@ export function MapView({
       </Map>
 
       {canAddPin && (
-        <div className="pointer-events-none absolute top-4 right-16 z-10">
+        <div className="pointer-events-none absolute top-16 right-4 z-10">
           <Button
             size="icon-sm"
             variant={addMode ? "default" : "secondary"}
-            className="pointer-events-auto rounded-full bg-white/90 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md hover:bg-white"
+            className="pointer-events-auto rounded-full bg-white/70 shadow-lg ring-1 ring-white/60 backdrop-blur-xl hover:bg-white/80"
             onClick={() => setAddMode((v) => !v)}
             aria-label={addMode ? "ピン追加をキャンセル" : "ピンを手動で追加"}
           >
@@ -273,8 +273,8 @@ export function MapView({
         </div>
       )}
       {addMode && (
-        <div className="pointer-events-none absolute inset-x-0 top-16 z-10 flex justify-center px-4">
-          <p className="rounded-full bg-white/90 px-4 py-2 text-center text-xs text-muted-foreground shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+        <div className="pointer-events-none absolute inset-x-0 top-28 z-10 flex justify-center px-4">
+          <p className="rounded-full bg-white/70 px-4 py-2 text-center text-xs text-muted-foreground shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
             地図をタップしてピンを置く場所を選んでください
           </p>
         </div>

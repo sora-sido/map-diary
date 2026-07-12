@@ -64,7 +64,7 @@ export function DateNav({
   ];
 
   return (
-    <div className="flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+    <div className="flex items-center gap-1 rounded-full bg-white/70 p-1 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
       <Link
         href={`/?date=${prev}`}
         aria-label="前日"
@@ -87,7 +87,10 @@ export function DateNav({
         <PopoverTrigger className="rounded-full px-2 py-1 text-sm font-medium tracking-tight hover:bg-black/[0.04]">
           {isToday ? "今日" : label}
         </PopoverTrigger>
-        <PopoverContent align="center" className="w-72 p-3">
+        <PopoverContent
+          align="center"
+          className="w-72 border-none bg-white/80 p-3 shadow-xl ring-1 ring-white/60 backdrop-blur-xl"
+        >
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"

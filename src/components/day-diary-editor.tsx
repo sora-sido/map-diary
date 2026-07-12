@@ -47,7 +47,7 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="flex w-full items-center gap-2 rounded-xl bg-white/90 px-3.5 py-2.5 text-left shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md"
+        className="flex w-full items-center gap-2 rounded-xl bg-white/70 px-3.5 py-2.5 text-left shadow-lg ring-1 ring-white/60 backdrop-blur-xl"
       >
         <NotebookPen className="size-4 shrink-0 text-muted-foreground" strokeWidth={2} />
         <span className="flex-1 truncate text-sm text-foreground/80">
@@ -61,7 +61,7 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl bg-white/90 p-3.5 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+    <div className="flex flex-col gap-2 rounded-xl bg-white/80 p-3.5 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-sm font-medium text-foreground/80">
           <NotebookPen className="size-4" strokeWidth={2} />

@@ -121,7 +121,7 @@ export default async function HomePage({
       {/* 状態メッセージ */}
       {session?.user?.id && (usingDummy || !hasRealData) && (
         <div className="pointer-events-none absolute inset-x-0 top-20 z-10 flex justify-center px-4">
-          <p className="pointer-events-auto max-w-sm rounded-full bg-white/90 px-4 py-2 text-center text-xs text-muted-foreground shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+          <p className="pointer-events-auto max-w-sm rounded-full bg-white/70 px-4 py-2 text-center text-xs text-muted-foreground shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
             {usingDummy
               ? "これはサンプルのルートです。記録を開始すると実際のルートに切り替わります。"
               : "この日の記録はありません。"}
@@ -135,7 +135,7 @@ export default async function HomePage({
           <div className="pointer-events-auto flex max-h-[44vh] w-full max-w-2xl flex-col gap-2.5 overflow-y-auto">
             <DayDiaryEditor key={dateParam} dateParam={dateParam} />
 
-            <div className="rounded-xl bg-white/90 p-2.5 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+            <div className="rounded-xl bg-white/80 p-2.5 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
               <div className={photos.length > 0 ? "mb-2 flex items-center justify-between" : "flex items-center justify-between"}>
                 <h2 className="text-sm font-medium text-foreground/80">
                   写真{photos.length > 0 && ` (${photos.length})`}

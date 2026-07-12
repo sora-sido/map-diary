@@ -13,7 +13,7 @@ import {
 export function LoginGate() {
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-white/40 backdrop-blur-sm">
-      <Card className="pointer-events-auto w-full max-w-sm border-none shadow-lg ring-1 ring-black/[0.06]">
+      <Card className="pointer-events-auto w-full max-w-sm border-none bg-white/80 shadow-xl ring-1 ring-white/60 backdrop-blur-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-semibold tracking-tight">
             Map Diary
