@@ -14,11 +14,14 @@ import {
   type MapMouseEvent,
 } from "@vis.gl/react-google-maps";
 import { LocationNoteEditor } from "@/components/location-note-editor";
+import { StayTimeEditor } from "@/components/stay-time-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export interface MapStay {
   id: string;
+  /** PlaceVisit.id。未設定(ダミーデータ)の場合は時刻編集不可。 */
+  placeVisitId?: string;
   name: string;
   lat: number;
   lng: number;
@@ -318,16 +321,26 @@ export function MapView({
                     {selectedStay.name}
                   </p>
                 )}
-                <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
                   {selectedStay.calendarEventTitle ? (
-                    <Calendar className="size-3" strokeWidth={2.5} />
+                    <Calendar className="size-3 shrink-0" strokeWidth={2.5} />
                   ) : (
-                    <Clock className="size-3" strokeWidth={2.5} />
+                    <Clock className="size-3 shrink-0" strokeWidth={2.5} />
                   )}
-                  {formatTime(selectedStay.arrivedAt)}
-                  {selectedStay.departedAt &&
-                    ` – ${formatTime(selectedStay.departedAt)}`}
-                </p>
+                  <span>
+                    {formatTime(selectedStay.arrivedAt)}
+                    {selectedStay.departedAt &&
+                      ` – ${formatTime(selectedStay.departedAt)}`}
+                  </span>
+                  {editableNotes && selectedStay.placeVisitId && (
+                    <StayTimeEditor
+                      key={selectedStay.id}
+                      placeVisitId={selectedStay.placeVisitId}
+                      arrivedAt={selectedStay.arrivedAt}
+                      departedAt={selectedStay.departedAt}
+                    />
+                  )}
+                </div>
               </div>
 
               {(editableNotes ||

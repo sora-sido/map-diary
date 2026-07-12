@@ -3,7 +3,10 @@ import { haversineMeters } from "@/lib/geo";
 import { addDays, startOfDay } from "@/lib/dateParam";
 
 export interface DerivedStay {
+  /** Location.id。ピンの位置・名前・メモの紐付けに使う。 */
   id: string;
+  /** PlaceVisit.id。滞在時刻の編集などピンポイントの操作に使う。 */
+  placeVisitId: string;
   name: string;
   lat: number;
   lng: number;
@@ -87,6 +90,7 @@ async function getManualStays(
 
   return manualVisits.map((visit) => ({
     id: visit.location.id,
+    placeVisitId: visit.id,
     name: visit.location.name,
     lat: visit.location.lat,
     lng: visit.location.lng,
@@ -136,7 +140,9 @@ function computeGaps(
  * 指定日のgps_logsから滞在(place_visits)をシンプルな逐次クラスタリングで再計算する。
  * syncTodayEvents(Calendar)と同じく、ページ表示のたびに再計算する冪等な設計。
  * 半径STAY_RADIUS_METERS以内に留まった時間がMIN_STAY_MINUTES以上の区間を1滞在とみなす。
- * GPSが取れず手動で置かれたピン(isManual)はこの再計算で消さずに残す。
+ * GPSが取れず手動で置かれたピン、または時刻を手動編集して確定させたピン(isManual)は
+ * この再計算で消さずに残す。手動確定済みの時間帯のGPS打点は、二重にクラスタリングして
+ * 重複ピンを作らないよう再クラスタリングの対象から除外する。
  */
 export async function syncPlaceVisits(
   userId: string,
@@ -166,7 +172,18 @@ export async function syncPlaceVisits(
     ? await getManualStays(userId, existingDailyLog.id, dayEvents)
     : [];
 
-  if (points.length < 2) {
+  // 手動確定済み(isManual)の時間帯に入っているGPS打点は再クラスタリングしない。
+  const manualRanges = manualStays
+    .filter((s): s is DerivedStay & { departedAt: Date } => s.departedAt !== null)
+    .map((s) => ({ start: s.arrivedAt, end: s.departedAt }));
+  const clusterablePoints = points.filter(
+    (p) =>
+      !manualRanges.some(
+        (r) => p.recordedAt >= r.start && p.recordedAt <= r.end,
+      ),
+  );
+
+  if (clusterablePoints.length < 2) {
     const sortedStays = [...manualStays].sort(
       (a, b) => a.arrivedAt.getTime() - b.arrivedAt.getTime(),
     );
@@ -192,10 +209,10 @@ export async function syncPlaceVisits(
   });
 
   const clusters: (typeof points)[] = [];
-  let current: typeof points = [points[0]];
+  let current: typeof points = [clusterablePoints[0]];
 
-  for (let i = 1; i < points.length; i++) {
-    const point = points[i];
+  for (let i = 1; i < clusterablePoints.length; i++) {
+    const point = clusterablePoints[i];
     const centroidLat =
       current.reduce((sum, p) => sum + p.lat, 0) / current.length;
     const centroidLng =
@@ -249,6 +266,7 @@ export async function syncPlaceVisits(
 
     gpsStays.push({
       id: location.id,
+      placeVisitId: visit.id,
       name: location.name,
       lat: location.lat,
       lng: location.lng,

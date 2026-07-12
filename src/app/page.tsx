@@ -52,6 +52,7 @@ export default async function HomePage({
       hasRealData = true;
       stays = result.stays.map((stay) => ({
         id: stay.id,
+        placeVisitId: stay.placeVisitId,
         name: stay.name,
         lat: stay.lat,
         lng: stay.lng,
