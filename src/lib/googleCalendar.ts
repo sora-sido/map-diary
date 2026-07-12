@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { prisma } from "@/lib/prisma";
+import { addDays, startOfDay } from "@/lib/dateParam";
 
 export interface SimpleCalendarEvent {
   googleEventId: string;
@@ -111,4 +112,30 @@ export async function syncTodayEvents(
   }
 
   return events;
+}
+
+/**
+ * 過去日のGoogleカレンダー予定を取得する。Google APIへは問い合わせず、
+ * その日が「今日」だった時にsyncTodayEventsで保存されたcalendar_eventsを読むだけ。
+ */
+export async function getCalendarEventsForDate(
+  userId: string,
+  targetDate: Date,
+): Promise<SimpleCalendarEvent[]> {
+  const dateOnly = startOfDay(targetDate);
+  const nextDay = addDays(dateOnly, 1);
+
+  const events = await prisma.calendarEvent.findMany({
+    where: { userId, startTime: { lt: nextDay }, endTime: { gt: dateOnly } },
+    orderBy: { startTime: "asc" },
+  });
+
+  return events.map((event) => ({
+    googleEventId: event.googleEventId,
+    title: event.title,
+    description: event.description,
+    location: event.location,
+    startTime: event.startTime,
+    endTime: event.endTime,
+  }));
 }

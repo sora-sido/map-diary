@@ -1,19 +1,32 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_MINUTES = 10;
+const MAX_POLLS = Math.ceil((MAX_POLL_MINUTES * 60 * 1000) / POLL_INTERVAL_MS);
 
 export function PhotoPickerButton({ dateParam }: { dateParam: string }) {
   const [status, setStatus] = useState<"idle" | "waiting">("idle");
   const [error, setError] = useState<string | null>(null);
   const stoppedRef = useRef(false);
+  const pollCountRef = useRef(0);
   const router = useRouter();
+
+  // アンマウント(ページ離脱等)時にポーリングを必ず止める。
+  useEffect(() => {
+    return () => {
+      stoppedRef.current = true;
+    };
+  }, []);
 
   async function start() {
     setError(null);
     setStatus("waiting");
     stoppedRef.current = false;
+    pollCountRef.current = 0;
 
     try {
       const res = await fetch("/api/photos/session", { method: "POST" });
@@ -36,6 +49,13 @@ export function PhotoPickerButton({ dateParam }: { dateParam: string }) {
   async function poll(sessionId: string) {
     if (stoppedRef.current) return;
 
+    pollCountRef.current += 1;
+    if (pollCountRef.current > MAX_POLLS) {
+      setError("写真の選択がタイムアウトしました。もう一度お試しください。");
+      setStatus("idle");
+      return;
+    }
+
     try {
       const res = await fetch(
         `/api/photos/session/${sessionId}?date=${dateParam}`,
@@ -57,7 +77,7 @@ export function PhotoPickerButton({ dateParam }: { dateParam: string }) {
     }
 
     if (!stoppedRef.current) {
-      setTimeout(() => poll(sessionId), 3000);
+      setTimeout(() => poll(sessionId), POLL_INTERVAL_MS);
     }
   }
 

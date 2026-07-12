@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +10,17 @@ export function GpsTracker() {
   const [error, setError] = useState<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const router = useRouter();
+
+  // ページ離脱・アンマウント時は必ず位置情報の監視を止める
+  // (放置するとタブを閉じるまでバックグラウンドで送信され続けてしまう)。
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, []);
 
   function start() {
     if (!("geolocation" in navigator)) {
