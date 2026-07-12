@@ -148,12 +148,12 @@ export function MapView({
                   )}
 
                   {selectedStay.meetingSummary && (
-                    <div className="flex items-start gap-2 rounded-xl bg-blue-500/8 px-2.5 py-2">
+                    <div className="flex items-start gap-2 rounded-xl bg-black/[0.03] px-2.5 py-2">
                       <MessageCircle
-                        className="mt-0.5 size-3.5 shrink-0 text-blue-600"
+                        className="mt-0.5 size-3.5 shrink-0 text-foreground/50"
                         strokeWidth={2.25}
                       />
-                      <p className="text-xs leading-relaxed text-blue-900">
+                      <p className="text-xs leading-relaxed text-foreground/70">
                         {selectedStay.meetingSummary}
                       </p>
                     </div>

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { syncPlaceVisits } from "@/lib/placeVisits";
@@ -9,8 +8,8 @@ import {
   type MapStay,
   type MapTrackPoint,
 } from "@/components/map-view";
-import { GpsTracker } from "@/components/gps-tracker";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
+import { PhotoThumbnail } from "@/components/photo-thumbnail";
 import { DateNav, type DateNavEvent } from "@/components/date-nav";
 import { DayDiaryEditor } from "@/components/day-diary-editor";
 import { AccountMenu } from "@/components/account-menu";
@@ -117,19 +116,10 @@ export default async function HomePage({
         </div>
       )}
 
-      {/* 右上: GPS記録 */}
-      {session?.user?.id && isToday && (
-        <div className="pointer-events-none absolute top-4 right-4 z-10">
-          <div className="pointer-events-auto">
-            <GpsTracker />
-          </div>
-        </div>
-      )}
-
       {/* 状態メッセージ */}
       {session?.user?.id && (usingDummy || !hasRealData) && (
         <div className="pointer-events-none absolute inset-x-0 top-20 z-10 flex justify-center px-4">
-          <p className="pointer-events-auto max-w-sm rounded-full bg-white/90 px-4 py-2 text-center text-xs text-muted-foreground shadow-lg ring-1 ring-black/5 backdrop-blur-md">
+          <p className="pointer-events-auto max-w-sm rounded-full bg-white/90 px-4 py-2 text-center text-xs text-muted-foreground shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
             {usingDummy
               ? "これはサンプルのルートです。記録を開始すると実際のルートに切り替わります。"
               : "この日の記録はありません。"}
@@ -140,32 +130,19 @@ export default async function HomePage({
       {/* 下部: 日記 + 写真 */}
       {session?.user?.id && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-4">
-          <div className="pointer-events-auto flex max-h-[48vh] w-full max-w-2xl flex-col gap-3 overflow-y-auto">
-            <div className="rounded-2xl bg-white/90 p-4 shadow-lg ring-1 ring-black/5 backdrop-blur-md">
-              <h2 className="mb-2 text-sm font-semibold tracking-tight">
-                日記
-              </h2>
-              <DayDiaryEditor key={dateParam} dateParam={dateParam} />
-            </div>
+          <div className="pointer-events-auto flex max-h-[44vh] w-full max-w-2xl flex-col gap-2.5 overflow-y-auto">
+            <DayDiaryEditor key={dateParam} dateParam={dateParam} />
 
-            <div className="rounded-2xl bg-white/90 p-4 shadow-lg ring-1 ring-black/5 backdrop-blur-md">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold tracking-tight">写真</h2>
+            <div className="rounded-xl bg-white/90 p-3.5 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+              <div className="mb-2.5 flex items-center justify-between">
+                <h2 className="text-sm font-medium text-foreground/80">写真</h2>
                 <PhotoPickerButton dateParam={dateParam} />
               </div>
               {photos.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {photos.map((photo) =>
                     photo.url ? (
-                      <Image
-                        key={photo.id}
-                        src={photo.url}
-                        alt=""
-                        width={96}
-                        height={96}
-                        unoptimized
-                        className="h-24 w-24 shrink-0 rounded-xl object-cover"
-                      />
+                      <PhotoThumbnail key={photo.id} id={photo.id} url={photo.url} />
                     ) : null,
                   )}
                 </div>

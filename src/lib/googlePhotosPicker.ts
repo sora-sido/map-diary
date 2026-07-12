@@ -122,43 +122,42 @@ export async function importPickedPhotos(
     update: {},
   });
 
-  const saved = [];
-  for (const item of items) {
-    const storagePath = `${userId}/${dateOnly.toISOString().slice(0, 10)}/${item.id}-${item.mediaFile.filename}`;
+  // ダウンロード→アップロードはネットワークI/O待ちが支配的なので、
+  // 件数分を直列に処理せず並列で行う(数枚選ぶと体感速度が大きく変わる)。
+  const results = await Promise.all(
+    items.map(async (item) => {
+      const storagePath = `${userId}/${dateOnly.toISOString().slice(0, 10)}/${item.id}-${item.mediaFile.filename}`;
 
-    const existing = await prisma.photo.findFirst({
-      where: { userId, storagePath },
-    });
-    if (existing) {
-      saved.push(existing);
-      continue;
-    }
-
-    const downloadUrl = `${item.mediaFile.baseUrl}=d`;
-    const fileRes = await fetch(downloadUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!fileRes.ok) continue;
-    const bytes = new Uint8Array(await fileRes.arrayBuffer());
-
-    const { error } = await supabaseAdmin.storage
-      .from(PHOTOS_BUCKET)
-      .upload(storagePath, bytes, {
-        contentType: item.mediaFile.mimeType,
-        upsert: true,
+      const existing = await prisma.photo.findFirst({
+        where: { userId, storagePath },
       });
-    if (error) continue;
+      if (existing) return existing;
 
-    const photo = await prisma.photo.create({
-      data: {
-        userId,
-        dailyLogId: dailyLog.id,
-        storagePath,
-        takenAt: new Date(item.createTime),
-      },
-    });
-    saved.push(photo);
-  }
+      const downloadUrl = `${item.mediaFile.baseUrl}=d`;
+      const fileRes = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!fileRes.ok) return null;
+      const bytes = new Uint8Array(await fileRes.arrayBuffer());
 
-  return saved;
+      const { error } = await supabaseAdmin.storage
+        .from(PHOTOS_BUCKET)
+        .upload(storagePath, bytes, {
+          contentType: item.mediaFile.mimeType,
+          upsert: true,
+        });
+      if (error) return null;
+
+      return prisma.photo.create({
+        data: {
+          userId,
+          dailyLogId: dailyLog.id,
+          storagePath,
+          takenAt: new Date(item.createTime),
+        },
+      });
+    }),
+  );
+
+  return results.filter((photo) => photo !== null);
 }

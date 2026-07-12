@@ -15,7 +15,7 @@ export function AccountMenu() {
 
   return (
     <Popover>
-      <PopoverTrigger className="rounded-full shadow-lg ring-1 ring-black/5 backdrop-blur-md">
+      <PopoverTrigger className="rounded-full shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
         <Avatar className="size-9">
           <AvatarImage src={session.user.image ?? undefined} />
           <AvatarFallback>{session.user.name?.[0]}</AvatarFallback>

@@ -64,7 +64,7 @@ export function DateNav({
   ];
 
   return (
-    <div className="flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-lg ring-1 ring-black/5 backdrop-blur-md">
+    <div className="flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
       <Link
         href={`/?date=${prev}`}
         aria-label="前日"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, NotebookPen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -9,6 +10,7 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,14 +42,47 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
     }
   }
 
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="flex w-full items-center gap-2 rounded-xl bg-white/90 px-3.5 py-2.5 text-left shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md"
+      >
+        <NotebookPen className="size-4 shrink-0 text-muted-foreground" strokeWidth={2} />
+        <span className="flex-1 truncate text-sm text-foreground/80">
+          {loading
+            ? "読み込み中..."
+            : note || "今日はどんな一日でしたか?"}
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+      </button>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 rounded-xl bg-white/90 p-3.5 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-foreground/80">
+          <NotebookPen className="size-4" strokeWidth={2} />
+          日記
+        </p>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          aria-label="閉じる"
+          className="rounded-full p-1 text-muted-foreground hover:bg-black/[0.04]"
+        >
+          <ChevronUp className="size-4" />
+        </button>
+      </div>
       <Textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="今日はどんな一日でしたか?"
         className="min-h-24 rounded-lg border-black/10 bg-white text-sm shadow-none"
         disabled={loading}
+        autoFocus
       />
       <div className="flex items-center gap-2">
         <Button
