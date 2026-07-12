@@ -241,6 +241,9 @@ model PlaceVisit {
   arrivedAt       DateTime
   departedAt      DateTime?
   durationMinutes Int?
+  /// GPSが取れなかった時にユーザーが手動で置いたピンかどうか。
+  /// trueの場合、GPSベースの再計算(syncPlaceVisits)で削除されずに残る。
+  isManual        Boolean                               @default(false)
   geog            Unsupported("geography(Point,4326)")?
   createdAt       DateTime                              @default(now())
 

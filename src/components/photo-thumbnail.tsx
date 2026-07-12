@@ -20,23 +20,23 @@ export function PhotoThumbnail({ id, url }: { id: string; url: string }) {
   }
 
   return (
-    <div className="group relative h-24 w-24 shrink-0">
+    <div className="group relative h-16 w-16 shrink-0">
       <Image
         src={url}
         alt=""
-        width={96}
-        height={96}
+        width={64}
+        height={64}
         unoptimized
-        className="h-24 w-24 rounded-xl object-cover"
+        className="h-16 w-16 rounded-lg object-cover"
       />
       <button
         type="button"
         onClick={handleDelete}
         disabled={deleting}
         aria-label="写真を削除"
-        className="absolute -top-1.5 -left-1.5 flex size-5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow transition-opacity group-hover:opacity-100 disabled:opacity-100"
+        className="absolute -top-1 -left-1 flex size-4 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow transition-opacity group-hover:opacity-100 disabled:opacity-100"
       >
-        <X className="size-3" strokeWidth={2.5} />
+        <X className="size-2.5" strokeWidth={2.5} />
       </button>
     </div>
   );

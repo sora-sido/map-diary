@@ -1,15 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Camera, Clock, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Calendar, Camera, Clock, MapPin, MessageCircle, X } from "lucide-react";
 import {
   APIProvider,
   InfoWindow,
   Map,
   Marker,
   Polyline,
+  type MapMouseEvent,
 } from "@vis.gl/react-google-maps";
 import { LocationNoteEditor } from "@/components/location-note-editor";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export interface MapStay {
   id: string;
@@ -43,6 +47,8 @@ export function MapView({
   trackPoints,
   center,
   editableNotes = false,
+  dateParam,
+  canAddPin = false,
 }: {
   apiKey?: string;
   stays: MapStay[];
@@ -50,8 +56,17 @@ export function MapView({
   center: { lat: number; lng: number };
   /** trueの場合、ピンのInfoWindowで場所メモを編集できる(実データのLocationにのみ有効)。 */
   editableNotes?: boolean;
+  /** 手動ピンをどの日に紐付けるか(YYYY-MM-DD)。canAddPinがtrueなら必須。 */
+  dateParam?: string;
+  /** trueの場合、地図をクリックして手動でピンを置けるようにする。 */
+  canAddPin?: boolean;
 }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [addMode, setAddMode] = useState(false);
+  const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [pendingName, setPendingName] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
   const selectedStay = stays.find((stay) => stay.id === selectedId);
 
   if (!apiKey) {
@@ -60,6 +75,35 @@ export function MapView({
         NEXT_PUBLIC_GOOGLE_MAPS_API_KEYが設定されていません。
       </div>
     );
+  }
+
+  function handleMapClick(event: MapMouseEvent) {
+    if (!addMode || !event.detail.latLng) return;
+    setSelectedId(null);
+    setPendingPin({ lat: event.detail.latLng.lat, lng: event.detail.latLng.lng });
+    setPendingName("");
+    setAddMode(false);
+  }
+
+  async function savePin() {
+    if (!pendingPin || !dateParam) return;
+    setSavingPin(true);
+    try {
+      await fetch("/api/place-visits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: pendingPin.lat,
+          lng: pendingPin.lng,
+          name: pendingName,
+          date: dateParam,
+        }),
+      });
+      setPendingPin(null);
+      router.refresh();
+    } finally {
+      setSavingPin(false);
+    }
   }
 
   return (
@@ -72,6 +116,7 @@ export function MapView({
         disableDefaultUI
         zoomControl
         colorScheme="LIGHT"
+        onClick={handleMapClick}
       >
         {trackPoints.length > 0 && (
           <Polyline
@@ -90,6 +135,47 @@ export function MapView({
             onClick={() => setSelectedId(stay.id)}
           />
         ))}
+
+        {pendingPin && (
+          <>
+            <Marker position={pendingPin} />
+            <InfoWindow
+              position={pendingPin}
+              onCloseClick={() => setPendingPin(null)}
+            >
+              <div className="w-56 p-3">
+                <p className="mb-2 text-sm font-semibold tracking-tight">
+                  この場所にピンを追加
+                </p>
+                <Input
+                  value={pendingName}
+                  onChange={(e) => setPendingName(e.target.value)}
+                  placeholder="場所の名前(任意)"
+                  className="h-8 text-sm"
+                  autoFocus
+                />
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    size="sm"
+                    className="h-7 rounded-full px-3 text-xs"
+                    onClick={savePin}
+                    disabled={savingPin}
+                  >
+                    {savingPin ? "追加中..." : "追加"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-full px-3 text-xs"
+                    onClick={() => setPendingPin(null)}
+                  >
+                    キャンセル
+                  </Button>
+                </div>
+              </div>
+            </InfoWindow>
+          </>
+        )}
 
         {selectedStay && (
           <InfoWindow
@@ -172,6 +258,27 @@ export function MapView({
           </InfoWindow>
         )}
       </Map>
+
+      {canAddPin && (
+        <div className="pointer-events-none absolute top-4 right-16 z-10">
+          <Button
+            size="icon-sm"
+            variant={addMode ? "default" : "secondary"}
+            className="pointer-events-auto rounded-full bg-white/90 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md hover:bg-white"
+            onClick={() => setAddMode((v) => !v)}
+            aria-label={addMode ? "ピン追加をキャンセル" : "ピンを手動で追加"}
+          >
+            {addMode ? <X className="size-4" /> : <MapPin className="size-4" />}
+          </Button>
+        </div>
+      )}
+      {addMode && (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-10 flex justify-center px-4">
+          <p className="rounded-full bg-white/90 px-4 py-2 text-center text-xs text-muted-foreground shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+            地図をタップしてピンを置く場所を選んでください
+          </p>
+        </div>
+      )}
     </APIProvider>
   );
 }

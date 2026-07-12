@@ -46,7 +46,7 @@ export default async function HomePage({
     }));
 
     const result = await syncPlaceVisits(session.user.id, targetDate);
-    if (result.trackPoints.length > 0) {
+    if (result.trackPoints.length > 0 || result.stays.length > 0) {
       hasRealData = true;
       stays = result.stays.map((stay) => ({
         id: stay.id,
@@ -54,7 +54,7 @@ export default async function HomePage({
         lat: stay.lat,
         lng: stay.lng,
         arrivedAt: stay.arrivedAt.toISOString(),
-        departedAt: stay.departedAt.toISOString(),
+        departedAt: stay.departedAt ? stay.departedAt.toISOString() : null,
         calendarEventTitle: stay.calendarEventTitle,
       }));
       trackPoints = result.trackPoints.map((p) => ({ lat: p.lat, lng: p.lng }));
@@ -94,6 +94,8 @@ export default async function HomePage({
         trackPoints={trackPoints}
         center={center}
         editableNotes={hasRealData}
+        dateParam={dateParam}
+        canAddPin={Boolean(session?.user?.id)}
       />
 
       {!session?.user?.id && <LoginGate />}
@@ -133,13 +135,15 @@ export default async function HomePage({
           <div className="pointer-events-auto flex max-h-[44vh] w-full max-w-2xl flex-col gap-2.5 overflow-y-auto">
             <DayDiaryEditor key={dateParam} dateParam={dateParam} />
 
-            <div className="rounded-xl bg-white/90 p-3.5 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
-              <div className="mb-2.5 flex items-center justify-between">
-                <h2 className="text-sm font-medium text-foreground/80">写真</h2>
+            <div className="rounded-xl bg-white/90 p-2.5 shadow-sm ring-1 ring-black/[0.06] backdrop-blur-md">
+              <div className={photos.length > 0 ? "mb-2 flex items-center justify-between" : "flex items-center justify-between"}>
+                <h2 className="text-sm font-medium text-foreground/80">
+                  写真{photos.length > 0 && ` (${photos.length})`}
+                </h2>
                 <PhotoPickerButton dateParam={dateParam} />
               </div>
               {photos.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                   {photos.map((photo) =>
                     photo.url ? (
                       <PhotoThumbnail key={photo.id} id={photo.id} url={photo.url} />

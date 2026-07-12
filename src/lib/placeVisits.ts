@@ -8,10 +8,11 @@ export interface DerivedStay {
   lat: number;
   lng: number;
   arrivedAt: Date;
-  departedAt: Date;
-  durationMinutes: number;
+  departedAt: Date | null;
+  durationMinutes: number | null;
   /** 滞在時間帯と重なるGoogleカレンダー予定のタイトル(あれば)。 */
   calendarEventTitle?: string;
+  isManual?: boolean;
 }
 
 export interface DerivedTrackPoint {
@@ -23,7 +24,12 @@ export interface DerivedTrackPoint {
 const STAY_RADIUS_METERS = 120;
 const MIN_STAY_MINUTES = 5;
 
-async function findOrCreateLocation(userId: string, lat: number, lng: number) {
+export async function findOrCreateLocation(
+  userId: string,
+  lat: number,
+  lng: number,
+  name?: string,
+) {
   const existing = await prisma.location.findMany({ where: { userId } });
   const nearby = existing.find(
     (loc) => haversineMeters(loc.lat, loc.lng, lat, lng) <= STAY_RADIUS_METERS,
@@ -33,7 +39,7 @@ async function findOrCreateLocation(userId: string, lat: number, lng: number) {
   const created = await prisma.location.create({
     data: {
       userId,
-      name: `未設定の場所 (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
+      name: name?.trim() || `未設定の場所 (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
       lat,
       lng,
     },
@@ -46,10 +52,55 @@ async function findOrCreateLocation(userId: string, lat: number, lng: number) {
   return created;
 }
 
+function matchCalendarEvent(
+  events: { title: string; startTime: Date; endTime: Date }[],
+  arrivedAt: Date,
+  departedAt: Date | null,
+) {
+  if (departedAt) {
+    return events.find(
+      (event) => event.startTime < departedAt && event.endTime > arrivedAt,
+    );
+  }
+  // 手動ピンなど退出時刻が無い場合は、到着時刻がその予定の枠内に入っているかで判定する。
+  return events.find(
+    (event) => event.startTime <= arrivedAt && event.endTime >= arrivedAt,
+  );
+}
+
+async function getManualStays(
+  userId: string,
+  dailyLogId: string,
+  dayEvents: { title: string; startTime: Date; endTime: Date }[],
+): Promise<DerivedStay[]> {
+  const manualVisits = await prisma.placeVisit.findMany({
+    where: { userId, dailyLogId, isManual: true },
+    include: { location: true },
+    orderBy: { arrivedAt: "asc" },
+  });
+
+  return manualVisits.map((visit) => ({
+    id: visit.location.id,
+    name: visit.location.name,
+    lat: visit.location.lat,
+    lng: visit.location.lng,
+    arrivedAt: visit.arrivedAt,
+    departedAt: visit.departedAt,
+    durationMinutes: visit.durationMinutes,
+    calendarEventTitle: matchCalendarEvent(
+      dayEvents,
+      visit.arrivedAt,
+      visit.departedAt,
+    )?.title,
+    isManual: true,
+  }));
+}
+
 /**
  * 指定日のgps_logsから滞在(place_visits)をシンプルな逐次クラスタリングで再計算する。
  * syncTodayEvents(Calendar)と同じく、ページ表示のたびに再計算する冪等な設計。
  * 半径STAY_RADIUS_METERS以内に留まった時間がMIN_STAY_MINUTES以上の区間を1滞在とみなす。
+ * GPSが取れず手動で置かれたピン(isManual)はこの再計算で消さずに残す。
  */
 export async function syncPlaceVisits(
   userId: string,
@@ -66,9 +117,21 @@ export async function syncPlaceVisits(
     orderBy: { recordedAt: "asc" },
   });
 
+  // 滞在時間帯と重なるカレンダー予定を後で突き合わせるため、その日の予定を先に取得しておく。
+  const dayEvents = await prisma.calendarEvent.findMany({
+    where: { userId, startTime: { lt: nextDay }, endTime: { gt: dateOnly } },
+  });
+
+  const existingDailyLog = await prisma.dailyLog.findUnique({
+    where: { userId_date: { userId, date: dateOnly } },
+  });
+  const manualStays = existingDailyLog
+    ? await getManualStays(userId, existingDailyLog.id, dayEvents)
+    : [];
+
   if (points.length < 2) {
     return {
-      stays: [],
+      stays: manualStays,
       trackPoints: points.map((p) => ({
         lat: p.lat,
         lng: p.lng,
@@ -84,12 +147,7 @@ export async function syncPlaceVisits(
   });
 
   await prisma.placeVisit.deleteMany({
-    where: { userId, dailyLogId: dailyLog.id },
-  });
-
-  // 滞在時間帯と重なるカレンダー予定を後で突き合わせるため、その日の予定を先に取得しておく。
-  const dayEvents = await prisma.calendarEvent.findMany({
-    where: { userId, startTime: { lt: nextDay }, endTime: { gt: dateOnly } },
+    where: { userId, dailyLogId: dailyLog.id, isManual: false },
   });
 
   const clusters: (typeof points)[] = [];
@@ -114,7 +172,7 @@ export async function syncPlaceVisits(
   }
   clusters.push(current);
 
-  const stays: DerivedStay[] = [];
+  const gpsStays: DerivedStay[] = [];
 
   for (const cluster of clusters) {
     const first = cluster[0];
@@ -148,11 +206,7 @@ export async function syncPlaceVisits(
       WHERE id = ${visit.id}
     `;
 
-    const matchedEvent = dayEvents.find(
-      (event) => event.startTime < last.recordedAt && event.endTime > first.recordedAt,
-    );
-
-    stays.push({
+    gpsStays.push({
       id: location.id,
       name: location.name,
       lat: location.lat,
@@ -160,12 +214,16 @@ export async function syncPlaceVisits(
       arrivedAt: first.recordedAt,
       departedAt: last.recordedAt,
       durationMinutes: roundedDuration,
-      calendarEventTitle: matchedEvent?.title,
+      calendarEventTitle: matchCalendarEvent(
+        dayEvents,
+        first.recordedAt,
+        last.recordedAt,
+      )?.title,
     });
   }
 
   return {
-    stays,
+    stays: [...manualStays, ...gpsStays],
     trackPoints: points.map((p) => ({
       lat: p.lat,
       lng: p.lng,
