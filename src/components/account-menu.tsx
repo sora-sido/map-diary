@@ -23,7 +23,7 @@ export function AccountMenu() {
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-56 border-none bg-white/80 p-3 shadow-xl ring-1 ring-white/60 backdrop-blur-xl"
+        className="w-56 border-none bg-white/60 p-3 shadow-xl ring-1 ring-white/60 backdrop-blur-xl"
       >
         <p className="mb-0.5 text-sm font-medium">{session.user.name}</p>
         <p className="mb-3 text-xs text-muted-foreground">

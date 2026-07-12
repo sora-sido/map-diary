@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Camera, Clock, MapPin, MessageCircle, X } from "lucide-react";
 import {
+  AdvancedMarker,
   APIProvider,
   InfoWindow,
   Map,
-  Marker,
+  Pin,
   Polyline,
   type MapMouseEvent,
 } from "@vis.gl/react-google-maps";
@@ -110,6 +111,7 @@ export function MapView({
     <APIProvider apiKey={apiKey}>
       <Map
         className="h-full w-full"
+        mapId="DEMO_MAP_ID"
         defaultCenter={center}
         defaultZoom={9}
         gestureHandling="greedy"
@@ -128,17 +130,26 @@ export function MapView({
         )}
 
         {stays.map((stay) => (
-          <Marker
+          <AdvancedMarker
             key={stay.id}
             position={{ lat: stay.lat, lng: stay.lng }}
             title={stay.calendarEventTitle ?? stay.name}
             onClick={() => setSelectedId(stay.id)}
-          />
+          >
+            <Pin
+              background="#18181b"
+              borderColor="#18181b"
+              glyphColor="#18181b"
+              scale={1}
+            />
+          </AdvancedMarker>
         ))}
 
         {pendingPin && (
           <>
-            <Marker position={pendingPin} />
+            <AdvancedMarker position={pendingPin}>
+              <Pin background="#2563eb" borderColor="#2563eb" glyphColor="#2563eb" />
+            </AdvancedMarker>
             <InfoWindow
               position={pendingPin}
               onCloseClick={() => setPendingPin(null)}
@@ -264,7 +275,7 @@ export function MapView({
           <Button
             size="icon-sm"
             variant={addMode ? "default" : "secondary"}
-            className="pointer-events-auto rounded-full bg-white/70 shadow-lg ring-1 ring-white/60 backdrop-blur-xl hover:bg-white/80"
+            className="pointer-events-auto rounded-full bg-white/60 shadow-lg ring-1 ring-white/60 backdrop-blur-xl hover:bg-white/80"
             onClick={() => setAddMode((v) => !v)}
             aria-label={addMode ? "ピン追加をキャンセル" : "ピンを手動で追加"}
           >
@@ -274,7 +285,7 @@ export function MapView({
       )}
       {addMode && (
         <div className="pointer-events-none absolute inset-x-0 top-28 z-10 flex justify-center px-4">
-          <p className="rounded-full bg-white/70 px-4 py-2 text-center text-xs text-muted-foreground shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
+          <p className="rounded-full bg-white/60 px-4 py-2 text-center text-xs text-muted-foreground shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
             地図をタップしてピンを置く場所を選んでください
           </p>
         </div>

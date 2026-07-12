@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const POLL_INTERVAL_MS = 3000;
@@ -83,8 +84,19 @@ export function PhotoPickerButton({ dateParam }: { dateParam: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="secondary" onClick={start} disabled={status !== "idle"}>
-        {status === "idle" ? "写真を追加" : "選択を待っています..."}
+      <Button
+        size="icon-sm"
+        variant="secondary"
+        className="rounded-full"
+        onClick={start}
+        disabled={status !== "idle"}
+        aria-label="写真を追加"
+      >
+        {status === "idle" ? (
+          <Plus className="size-4" />
+        ) : (
+          <Loader2 className="size-4 animate-spin" />
+        )}
       </Button>
       {status === "waiting" && (
         <span className="text-xs text-muted-foreground">
