@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin, PHOTOS_BUCKET } from "@/lib/supabaseStorage";
+import { startOfDay } from "@/lib/dateParam";
 
 export interface PhotoWithUrl {
   id: string;
@@ -7,14 +8,12 @@ export interface PhotoWithUrl {
   url: string | null;
 }
 
-function startOfToday() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-/** 今日撮影された(=Pickerで取り込まれた)写真を、署名付きURL付きで取得する。 */
-export async function getTodayPhotos(userId: string): Promise<PhotoWithUrl[]> {
-  const dateOnly = startOfToday();
+/** 指定日にPickerで取り込まれた写真を、署名付きURL付きで取得する。 */
+export async function getPhotosForDate(
+  userId: string,
+  targetDate: Date,
+): Promise<PhotoWithUrl[]> {
+  const dateOnly = startOfDay(targetDate);
   const dailyLog = await prisma.dailyLog.findUnique({
     where: { userId_date: { userId, date: dateOnly } },
   });

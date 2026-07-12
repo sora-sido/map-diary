@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Calendar, Camera, Clock, MessageCircle } from "lucide-react";
 import {
   APIProvider,
   InfoWindow,
@@ -20,6 +21,8 @@ export interface MapStay {
   note?: string;
   meetingSummary?: string;
   photoCount?: number;
+  /** 滞在時間帯と重なるGoogleカレンダー予定のタイトル。 */
+  calendarEventTitle?: string;
 }
 
 export interface MapTrackPoint {
@@ -53,7 +56,7 @@ export function MapView({
 
   if (!apiKey) {
     return (
-      <div className="flex h-[70vh] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+      <div className="flex h-full w-full items-center justify-center bg-muted text-sm text-muted-foreground">
         NEXT_PUBLIC_GOOGLE_MAPS_API_KEYが設定されていません。
       </div>
     );
@@ -62,10 +65,13 @@ export function MapView({
   return (
     <APIProvider apiKey={apiKey}>
       <Map
-        className="h-[70vh] w-full rounded-xl"
+        className="h-full w-full"
         defaultCenter={center}
         defaultZoom={9}
         gestureHandling="greedy"
+        disableDefaultUI
+        zoomControl
+        colorScheme="LIGHT"
       >
         {trackPoints.length > 0 && (
           <Polyline
@@ -80,7 +86,7 @@ export function MapView({
           <Marker
             key={stay.id}
             position={{ lat: stay.lat, lng: stay.lng }}
-            title={stay.name}
+            title={stay.calendarEventTitle ?? stay.name}
             onClick={() => setSelectedId(stay.id)}
           />
         ))}
@@ -90,34 +96,77 @@ export function MapView({
             position={{ lat: selectedStay.lat, lng: selectedStay.lng }}
             onCloseClick={() => setSelectedId(null)}
           >
-            <div className="max-w-64 p-1 text-sm">
-              <p className="mb-1 font-semibold">{selectedStay.name}</p>
-              <p className="mb-2 text-xs text-muted-foreground">
-                {formatTime(selectedStay.arrivedAt)}
-                {selectedStay.departedAt &&
-                  ` - ${formatTime(selectedStay.departedAt)}`}
-              </p>
-              {editableNotes ? (
-                <div className="mb-1">
-                  <LocationNoteEditor
-                    key={selectedStay.id}
-                    locationId={selectedStay.id}
-                  />
+            <div className="w-72 overflow-hidden">
+              <div className="px-4 pt-4 pb-3">
+                {selectedStay.calendarEventTitle ? (
+                  <>
+                    <p className="text-[15px] leading-tight font-semibold tracking-tight text-foreground">
+                      {selectedStay.calendarEventTitle}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {selectedStay.name}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[15px] leading-tight font-semibold tracking-tight text-foreground">
+                    {selectedStay.name}
+                  </p>
+                )}
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  {selectedStay.calendarEventTitle ? (
+                    <Calendar className="size-3" strokeWidth={2.5} />
+                  ) : (
+                    <Clock className="size-3" strokeWidth={2.5} />
+                  )}
+                  {formatTime(selectedStay.arrivedAt)}
+                  {selectedStay.departedAt &&
+                    ` – ${formatTime(selectedStay.departedAt)}`}
+                </p>
+              </div>
+
+              {(editableNotes ||
+                selectedStay.note ||
+                selectedStay.meetingSummary ||
+                selectedStay.photoCount !== undefined) && (
+                <div className="flex flex-col gap-3 border-t border-black/[0.06] bg-black/[0.015] px-4 py-3.5">
+                  {editableNotes ? (
+                    <div>
+                      <p className="mb-1.5 text-xs font-semibold text-foreground/70">
+                        自分のメモ
+                      </p>
+                      <LocationNoteEditor
+                        key={selectedStay.id}
+                        locationId={selectedStay.id}
+                      />
+                    </div>
+                  ) : (
+                    selectedStay.note && (
+                      <p className="text-sm leading-relaxed text-foreground/90">
+                        {selectedStay.note}
+                      </p>
+                    )
+                  )}
+
+                  {selectedStay.meetingSummary && (
+                    <div className="flex items-start gap-2 rounded-xl bg-blue-500/8 px-2.5 py-2">
+                      <MessageCircle
+                        className="mt-0.5 size-3.5 shrink-0 text-blue-600"
+                        strokeWidth={2.25}
+                      />
+                      <p className="text-xs leading-relaxed text-blue-900">
+                        {selectedStay.meetingSummary}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedStay.photoCount !== undefined &&
+                    selectedStay.photoCount > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Camera className="size-3.5" strokeWidth={2.25} />
+                        <span>写真 {selectedStay.photoCount}枚</span>
+                      </div>
+                    )}
                 </div>
-              ) : (
-                selectedStay.note && (
-                  <p className="mb-1">{selectedStay.note}</p>
-                )
-              )}
-              {selectedStay.meetingSummary && (
-                <p className="mb-1 text-xs">
-                  💬 {selectedStay.meetingSummary}
-                </p>
-              )}
-              {selectedStay.photoCount !== undefined && (
-                <p className="text-xs text-muted-foreground">
-                  📷 写真 {selectedStay.photoCount}枚
-                </p>
               )}
             </div>
           </InfoWindow>

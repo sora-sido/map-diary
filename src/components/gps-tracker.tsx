@@ -55,20 +55,37 @@ export function GpsTracker() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm">
-      {tracking ? (
-        <Button variant="outline" onClick={stop}>
-          記録停止
-        </Button>
-      ) : (
-        <Button onClick={start}>記録開始</Button>
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-2 rounded-full bg-white/90 py-1.5 pr-1.5 pl-4 shadow-lg ring-1 ring-black/5 backdrop-blur-md">
+        <span className="text-sm font-medium text-foreground">
+          {tracking ? `記録中 ${pointCount}` : "記録"}
+        </span>
+        {tracking ? (
+          <Button
+            size="icon-sm"
+            variant="destructive"
+            className="rounded-full"
+            onClick={stop}
+            aria-label="記録停止"
+          >
+            <span className="size-2.5 rounded-[2px] bg-current" />
+          </Button>
+        ) : (
+          <Button
+            size="icon-sm"
+            className="rounded-full bg-red-500 hover:bg-red-500/90"
+            onClick={start}
+            aria-label="記録開始"
+          >
+            <span className="size-2.5 rounded-full bg-white" />
+          </Button>
+        )}
+      </div>
+      {error && (
+        <span className="max-w-56 rounded-lg bg-white/90 px-3 py-1.5 text-right text-xs text-destructive shadow-lg backdrop-blur-md">
+          {error}
+        </span>
       )}
-      <span className="text-muted-foreground">
-        {tracking
-          ? `記録中... (${pointCount}件送信済み)`
-          : "このタブを開いている間だけ位置情報が記録されます"}
-      </span>
-      {error && <span className="text-destructive">{error}</span>}
     </div>
   );
 }

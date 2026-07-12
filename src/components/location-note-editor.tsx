@@ -49,14 +49,22 @@ export function LocationNoteEditor({ locationId }: { locationId: string }) {
       <Textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="この場所でのメモを書く"
-        className="min-h-20 text-sm"
+        placeholder="例: ○○さんと△△について打ち合わせ"
+        className="min-h-20 rounded-lg border-black/10 bg-white text-sm shadow-none"
+        autoFocus
       />
       <div className="flex items-center gap-2">
-        <Button size="sm" onClick={save} disabled={saving}>
+        <Button
+          size="sm"
+          className="h-7 rounded-full px-3 text-xs"
+          onClick={save}
+          disabled={saving}
+        >
           {saving ? "保存中..." : "保存"}
         </Button>
-        {saved && <span className="text-xs text-muted-foreground">保存しました</span>}
+        {saved && (
+          <span className="text-xs text-muted-foreground">保存しました</span>
+        )}
       </div>
     </div>
   );

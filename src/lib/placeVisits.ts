@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { haversineMeters } from "@/lib/geo";
+import { addDays, startOfDay } from "@/lib/dateParam";
 
 export interface DerivedStay {
   id: string;
@@ -9,6 +10,8 @@ export interface DerivedStay {
   arrivedAt: Date;
   departedAt: Date;
   durationMinutes: number;
+  /** 滞在時間帯と重なるGoogleカレンダー予定のタイトル(あれば)。 */
+  calendarEventTitle?: string;
 }
 
 export interface DerivedTrackPoint {
@@ -19,11 +22,6 @@ export interface DerivedTrackPoint {
 
 const STAY_RADIUS_METERS = 120;
 const MIN_STAY_MINUTES = 5;
-
-function startOfToday() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
 
 async function findOrCreateLocation(userId: string, lat: number, lng: number) {
   const existing = await prisma.location.findMany({ where: { userId } });
@@ -49,18 +47,22 @@ async function findOrCreateLocation(userId: string, lat: number, lng: number) {
 }
 
 /**
- * 今日のgps_logsから滞在(place_visits)をシンプルな逐次クラスタリングで再計算する。
+ * 指定日のgps_logsから滞在(place_visits)をシンプルな逐次クラスタリングで再計算する。
  * syncTodayEvents(Calendar)と同じく、ページ表示のたびに再計算する冪等な設計。
  * 半径STAY_RADIUS_METERS以内に留まった時間がMIN_STAY_MINUTES以上の区間を1滞在とみなす。
  */
-export async function syncPlaceVisits(userId: string): Promise<{
+export async function syncPlaceVisits(
+  userId: string,
+  targetDate: Date,
+): Promise<{
   stays: DerivedStay[];
   trackPoints: DerivedTrackPoint[];
 }> {
-  const dateOnly = startOfToday();
+  const dateOnly = startOfDay(targetDate);
+  const nextDay = addDays(dateOnly, 1);
 
   const points = await prisma.gpsLog.findMany({
-    where: { userId, recordedAt: { gte: dateOnly } },
+    where: { userId, recordedAt: { gte: dateOnly, lt: nextDay } },
     orderBy: { recordedAt: "asc" },
   });
 
@@ -83,6 +85,11 @@ export async function syncPlaceVisits(userId: string): Promise<{
 
   await prisma.placeVisit.deleteMany({
     where: { userId, dailyLogId: dailyLog.id },
+  });
+
+  // 滞在時間帯と重なるカレンダー予定を後で突き合わせるため、その日の予定を先に取得しておく。
+  const dayEvents = await prisma.calendarEvent.findMany({
+    where: { userId, startTime: { lt: nextDay }, endTime: { gt: dateOnly } },
   });
 
   const clusters: (typeof points)[] = [];
@@ -141,6 +148,10 @@ export async function syncPlaceVisits(userId: string): Promise<{
       WHERE id = ${visit.id}
     `;
 
+    const matchedEvent = dayEvents.find(
+      (event) => event.startTime < last.recordedAt && event.endTime > first.recordedAt,
+    );
+
     stays.push({
       id: location.id,
       name: location.name,
@@ -149,6 +160,7 @@ export async function syncPlaceVisits(userId: string): Promise<{
       arrivedAt: first.recordedAt,
       departedAt: last.recordedAt,
       durationMinutes: roundedDuration,
+      calendarEventTitle: matchedEvent?.title,
     });
   }
 

@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin, PHOTOS_BUCKET } from "@/lib/supabaseStorage";
+import { startOfDay } from "@/lib/dateParam";
 
 const PICKER_BASE = "https://photospicker.googleapis.com/v1";
 
@@ -101,21 +102,20 @@ async function listPickedMediaItems(
   return items;
 }
 
-function startOfToday() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
 /**
  * セッションで選択済みの写真をダウンロードしてSupabase Storageへ保存し、
- * 今日のdaily_logs単位でphotosテーブルへ記録する(場所への自動紐付けは行わない。
+ * 指定日のdaily_logs単位でphotosテーブルへ記録する(場所への自動紐付けは行わない。
  * Picker APIはGPS/EXIF位置情報を返さないため)。
  */
-export async function importPickedPhotos(userId: string, sessionId: string) {
+export async function importPickedPhotos(
+  userId: string,
+  sessionId: string,
+  targetDate: Date,
+) {
   const accessToken = await getAccessToken(userId);
   const items = await listPickedMediaItems(accessToken, sessionId);
 
-  const dateOnly = startOfToday();
+  const dateOnly = startOfDay(targetDate);
   const dailyLog = await prisma.dailyLog.upsert({
     where: { userId_date: { userId, date: dateOnly } },
     create: { userId, date: dateOnly },

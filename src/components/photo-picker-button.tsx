@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export function PhotoPickerButton() {
+export function PhotoPickerButton({ dateParam }: { dateParam: string }) {
   const [status, setStatus] = useState<"idle" | "waiting">("idle");
   const [error, setError] = useState<string | null>(null);
   const stoppedRef = useRef(false);
@@ -37,7 +37,9 @@ export function PhotoPickerButton() {
     if (stoppedRef.current) return;
 
     try {
-      const res = await fetch(`/api/photos/session/${sessionId}`);
+      const res = await fetch(
+        `/api/photos/session/${sessionId}?date=${dateParam}`,
+      );
       const data = (await res.json()) as { done?: boolean; error?: string };
 
       if (data.error) {
@@ -60,16 +62,16 @@ export function PhotoPickerButton() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={start} disabled={status !== "idle"}>
-        {status === "idle" ? "写真を選ぶ" : "選択を待っています..."}
+    <div className="flex flex-wrap items-center gap-2">
+      <Button size="sm" variant="secondary" onClick={start} disabled={status !== "idle"}>
+        {status === "idle" ? "写真を追加" : "選択を待っています..."}
       </Button>
       {status === "waiting" && (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           Google Photosのタブで写真を選んでください
         </span>
       )}
-      {error && <span className="text-sm text-destructive">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   );
 }

@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPickerSession, importPickedPhotos } from "@/lib/googlePhotosPicker";
+import { parseDateParam } from "@/lib/dateParam";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
@@ -12,6 +13,8 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const targetDate = parseDateParam(searchParams.get("date") ?? undefined);
 
   try {
     const pickerSession = await getPickerSession(session.user.id, id);
@@ -19,7 +22,7 @@ export async function GET(
       return NextResponse.json({ done: false });
     }
 
-    const photos = await importPickedPhotos(session.user.id, id);
+    const photos = await importPickedPhotos(session.user.id, id, targetDate);
     return NextResponse.json({ done: true, count: photos.length });
   } catch (err) {
     return NextResponse.json(
