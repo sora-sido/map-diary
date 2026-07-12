@@ -5,6 +5,7 @@ import { getPhotosForDate } from "@/lib/photos";
 import { syncTodayEvents, getCalendarEventsForDate } from "@/lib/googleCalendar";
 import {
   MapView,
+  type MapGap,
   type MapStay,
   type MapTrackPoint,
 } from "@/components/map-view";
@@ -32,6 +33,7 @@ export default async function HomePage({
 
   let stays: MapStay[] = [];
   let trackPoints: MapTrackPoint[] = [];
+  let gaps: MapGap[] = [];
   let hasRealData = false;
   let calendarEvents: DateNavEvent[] = [];
 
@@ -59,6 +61,7 @@ export default async function HomePage({
       }));
       trackPoints = result.trackPoints.map((p) => ({ lat: p.lat, lng: p.lng }));
     }
+    gaps = result.gaps;
   }
 
   const usingDummy = !hasRealData && isToday;
@@ -92,6 +95,7 @@ export default async function HomePage({
         apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
         stays={stays}
         trackPoints={trackPoints}
+        gaps={gaps}
         center={center}
         editableNotes={hasRealData}
         dateParam={dateParam}

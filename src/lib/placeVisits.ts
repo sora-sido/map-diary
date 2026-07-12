@@ -21,6 +21,12 @@ export interface DerivedTrackPoint {
   recordedAt: Date;
 }
 
+/** GPSが途切れて記録できなかった、2つの滞在の間の区間。 */
+export interface DerivedGap {
+  from: { lat: number; lng: number };
+  to: { lat: number; lng: number };
+}
+
 const STAY_RADIUS_METERS = 120;
 const MIN_STAY_MINUTES = 5;
 
@@ -97,6 +103,36 @@ async function getManualStays(
 }
 
 /**
+ * 時系列順に並んだ滞在のうち、GPS打点で繋がっていない区間を「ギャップ」として検出する。
+ * 経路検索(Directions)で補完する候補として使う。
+ */
+function computeGaps(
+  stays: DerivedStay[],
+  points: { recordedAt: Date }[],
+): DerivedGap[] {
+  const gaps: DerivedGap[] = [];
+
+  for (let i = 0; i < stays.length - 1; i++) {
+    const a = stays[i];
+    const b = stays[i + 1];
+    const from = a.departedAt ?? a.arrivedAt;
+    const to = b.arrivedAt;
+
+    const hasConnectingPoints = points.some(
+      (p) => p.recordedAt > from && p.recordedAt < to,
+    );
+    if (!hasConnectingPoints) {
+      gaps.push({
+        from: { lat: a.lat, lng: a.lng },
+        to: { lat: b.lat, lng: b.lng },
+      });
+    }
+  }
+
+  return gaps;
+}
+
+/**
  * 指定日のgps_logsから滞在(place_visits)をシンプルな逐次クラスタリングで再計算する。
  * syncTodayEvents(Calendar)と同じく、ページ表示のたびに再計算する冪等な設計。
  * 半径STAY_RADIUS_METERS以内に留まった時間がMIN_STAY_MINUTES以上の区間を1滞在とみなす。
@@ -108,6 +144,7 @@ export async function syncPlaceVisits(
 ): Promise<{
   stays: DerivedStay[];
   trackPoints: DerivedTrackPoint[];
+  gaps: DerivedGap[];
 }> {
   const dateOnly = startOfDay(targetDate);
   const nextDay = addDays(dateOnly, 1);
@@ -130,13 +167,17 @@ export async function syncPlaceVisits(
     : [];
 
   if (points.length < 2) {
+    const sortedStays = [...manualStays].sort(
+      (a, b) => a.arrivedAt.getTime() - b.arrivedAt.getTime(),
+    );
     return {
-      stays: manualStays,
+      stays: sortedStays,
       trackPoints: points.map((p) => ({
         lat: p.lat,
         lng: p.lng,
         recordedAt: p.recordedAt,
       })),
+      gaps: computeGaps(sortedStays, points),
     };
   }
 
@@ -222,12 +263,17 @@ export async function syncPlaceVisits(
     });
   }
 
+  const sortedStays = [...manualStays, ...gpsStays].sort(
+    (a, b) => a.arrivedAt.getTime() - b.arrivedAt.getTime(),
+  );
+
   return {
-    stays: [...manualStays, ...gpsStays],
+    stays: sortedStays,
     trackPoints: points.map((p) => ({
       lat: p.lat,
       lng: p.lng,
       recordedAt: p.recordedAt,
     })),
+    gaps: computeGaps(sortedStays, points),
   };
 }

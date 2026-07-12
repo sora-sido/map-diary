@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Camera, Clock, MapPin, MessageCircle, X } from "lucide-react";
 import {
@@ -10,6 +10,7 @@ import {
   Map,
   Pin,
   Polyline,
+  useMapsLibrary,
   type MapMouseEvent,
 } from "@vis.gl/react-google-maps";
 import { LocationNoteEditor } from "@/components/location-note-editor";
@@ -35,6 +36,19 @@ export interface MapTrackPoint {
   lng: number;
 }
 
+/** GPSが途切れて記録できなかった、2つの滞在の間の区間。 */
+export interface MapGap {
+  from: { lat: number; lng: number };
+  to: { lat: number; lng: number };
+}
+
+const CIRCLED_DIGITS = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+
+function circledNumber(n: number): string {
+  if (n >= 1 && n <= CIRCLED_DIGITS.length) return CIRCLED_DIGITS[n - 1];
+  return String(n);
+}
+
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("ja-JP", {
     hour: "2-digit",
@@ -42,10 +56,100 @@ function formatTime(iso: string) {
   });
 }
 
+/**
+ * GPSが途切れた区間を、Directions(車→ダメなら公共交通機関)で
+ * 推定ルートとして補完し、破線のPolylineで描画する。
+ */
+function GapRoutes({ gaps }: { gaps: MapGap[] }) {
+  const routesLibrary = useMapsLibrary("routes");
+  const [paths, setPaths] = useState<google.maps.LatLngLiteral[][]>([]);
+
+  useEffect(() => {
+    if (!routesLibrary || gaps.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    const service = new routesLibrary.DirectionsService();
+
+    function tryRoute(gap: MapGap, mode: google.maps.TravelMode) {
+      return new Promise<google.maps.DirectionsResult>((resolve, reject) => {
+        service.route(
+          { origin: gap.from, destination: gap.to, travelMode: mode },
+          (result, status) => {
+            if (status === "OK" && result) resolve(result);
+            else reject(status);
+          },
+        );
+      });
+    }
+
+    async function fetchAll() {
+      const results: google.maps.LatLngLiteral[][] = [];
+      for (const gap of gaps) {
+        try {
+          const result = await tryRoute(
+            gap,
+            google.maps.TravelMode.DRIVING,
+          );
+          results.push(
+            result.routes[0].overview_path.map((p) => ({
+              lat: p.lat(),
+              lng: p.lng(),
+            })),
+          );
+          continue;
+        } catch {
+          // 車で経路が引けない場合は公共交通機関を試す
+        }
+        try {
+          const result = await tryRoute(
+            gap,
+            google.maps.TravelMode.TRANSIT,
+          );
+          results.push(
+            result.routes[0].overview_path.map((p) => ({
+              lat: p.lat(),
+              lng: p.lng(),
+            })),
+          );
+        } catch {
+          // どちらも経路が引けない区間は諦めて何も描かない
+        }
+      }
+      if (!cancelled) setPaths(results);
+    }
+
+    fetchAll();
+    return () => {
+      cancelled = true;
+    };
+  }, [routesLibrary, gaps]);
+
+  return (
+    <>
+      {paths.map((path, i) => (
+        <Polyline
+          key={i}
+          path={path}
+          strokeOpacity={0}
+          icons={[
+            {
+              icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 },
+              offset: "0",
+              repeat: "12px",
+            },
+          ]}
+        />
+      ))}
+    </>
+  );
+}
+
 export function MapView({
   apiKey,
   stays,
   trackPoints,
+  gaps = [],
   center,
   editableNotes = false,
   dateParam,
@@ -54,6 +158,8 @@ export function MapView({
   apiKey?: string;
   stays: MapStay[];
   trackPoints: MapTrackPoint[];
+  /** GPSが途切れて繋がっていない滞在間の区間(経路検索で補完表示する)。 */
+  gaps?: MapGap[];
   center: { lat: number; lng: number };
   /** trueの場合、ピンのInfoWindowで場所メモを編集できる(実データのLocationにのみ有効)。 */
   editableNotes?: boolean;
@@ -129,7 +235,9 @@ export function MapView({
           />
         )}
 
-        {stays.map((stay) => (
+        <GapRoutes key={dateParam} gaps={gaps} />
+
+        {stays.map((stay, index) => (
           <AdvancedMarker
             key={stay.id}
             position={{ lat: stay.lat, lng: stay.lng }}
@@ -139,7 +247,8 @@ export function MapView({
             <Pin
               background="#18181b"
               borderColor="#18181b"
-              glyphColor="#18181b"
+              glyphColor="#ffffff"
+              glyphText={circledNumber(index + 1)}
               scale={1}
             />
           </AdvancedMarker>
