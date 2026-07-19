@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Camera, Clock, MapPin, MessageCircle, X } from "lucide-react";
+import {
+  Calendar,
+  Camera,
+  Check,
+  Clock,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  X,
+} from "lucide-react";
 import {
   AdvancedMarker,
   APIProvider,
@@ -216,20 +225,26 @@ export function MapView({
                 />
                 <div className="mt-2 flex gap-2">
                   <Button
-                    size="sm"
-                    className="h-7 rounded-full px-3 text-xs"
+                    size="icon-sm"
+                    className="rounded-full"
                     onClick={savePin}
                     disabled={savingPin}
+                    aria-label="追加"
                   >
-                    {savingPin ? "追加中..." : "追加"}
+                    {savingPin ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Check className="size-3.5" />
+                    )}
                   </Button>
                   <Button
-                    size="sm"
+                    size="icon-sm"
                     variant="outline"
-                    className="h-7 rounded-full px-3 text-xs"
+                    className="rounded-full"
                     onClick={() => setPendingPin(null)}
+                    aria-label="キャンセル"
                   >
-                    キャンセル
+                    <X className="size-3.5" />
                   </Button>
                 </div>
               </div>

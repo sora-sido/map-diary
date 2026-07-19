@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, NotebookPen } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Loader2, NotebookPen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -84,12 +84,17 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
         autoFocus
       />
       <Button
-        size="sm"
-        className="h-7 w-fit rounded-full px-3 text-xs"
+        size="icon-sm"
+        className="rounded-full"
         onClick={save}
         disabled={saving || loading}
+        aria-label="保存"
       >
-        {saving ? "保存中..." : "保存"}
+        {saving ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <Check className="size-3.5" />
+        )}
       </Button>
     </div>
   );

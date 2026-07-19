@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Check, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -86,12 +86,17 @@ export function StayTimeEditor({
         className="h-6 w-[5.5rem] px-1.5 text-xs"
       />
       <Button
-        size="sm"
-        className="h-6 rounded-full px-2 text-[11px]"
+        size="icon-xs"
+        className="rounded-full"
         onClick={save}
         disabled={saving}
+        aria-label="保存"
       >
-        {saving ? "..." : "保存"}
+        {saving ? (
+          <Loader2 className="size-3 animate-spin" />
+        ) : (
+          <Check className="size-3" />
+        )}
       </Button>
     </div>
   );

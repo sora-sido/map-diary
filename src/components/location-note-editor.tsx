@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -55,12 +56,17 @@ export function LocationNoteEditor({ locationId }: { locationId: string }) {
       />
       <div className="flex items-center gap-2">
         <Button
-          size="sm"
-          className="h-7 rounded-full px-3 text-xs"
+          size="icon-sm"
+          className="rounded-full"
           onClick={save}
           disabled={saving}
+          aria-label="保存"
         >
-          {saving ? "保存中..." : "保存"}
+          {saving ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Check className="size-3.5" />
+          )}
         </Button>
         {saved && (
           <span className="text-xs text-muted-foreground">保存しました</span>
