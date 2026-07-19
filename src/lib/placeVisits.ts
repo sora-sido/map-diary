@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { haversineMeters } from "@/lib/geo";
 import { addDays, startOfDay } from "@/lib/dateParam";
+import { findNearbyPlaceName } from "@/lib/googlePlaces";
 
 export interface DerivedStay {
   /** Location.id。ピンの位置・名前・メモの紐付けに使う。 */
@@ -47,10 +48,17 @@ export async function findOrCreateLocation(
   );
   if (nearby) return nearby;
 
+  // 名前が指定されていない(GPSから自動検出した)場合、Places APIで近くの
+  // 実在施設名を探す。見つからなければ従来通り座標表示にフォールバックする。
+  const resolvedName =
+    name?.trim() ||
+    (await findNearbyPlaceName(lat, lng)) ||
+    `未設定の場所 (${lat.toFixed(3)}, ${lng.toFixed(3)})`;
+
   const created = await prisma.location.create({
     data: {
       userId,
-      name: name?.trim() || `未設定の場所 (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
+      name: resolvedName,
       lat,
       lng,
     },
