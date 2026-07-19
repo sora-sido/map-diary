@@ -5,11 +5,16 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+const THUMBNAIL_SIZE = 64;
+const EXPANDED_SIZE = 160;
+
 export function PhotoThumbnail({ id, url }: { id: string; url: string }) {
   const [deleting, setDeleting] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const router = useRouter();
 
-  async function handleDelete() {
+  async function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation();
     setDeleting(true);
     try {
       await fetch(`/api/photos/${id}`, { method: "DELETE" });
@@ -19,15 +24,21 @@ export function PhotoThumbnail({ id, url }: { id: string; url: string }) {
     }
   }
 
+  const size = expanded ? EXPANDED_SIZE : THUMBNAIL_SIZE;
+
   return (
-    <div className="group relative h-16 w-16 shrink-0">
+    <div
+      className="group relative shrink-0 cursor-pointer transition-[width,height] duration-200"
+      style={{ width: size, height: size }}
+      onClick={() => setExpanded((v) => !v)}
+    >
       <Image
         src={url}
         alt=""
-        width={64}
-        height={64}
+        width={EXPANDED_SIZE}
+        height={EXPANDED_SIZE}
         unoptimized
-        className="h-16 w-16 rounded-lg object-cover"
+        className="h-full w-full rounded-lg object-cover"
       />
       <button
         type="button"

@@ -44,7 +44,7 @@ export interface MapGap {
   to: { lat: number; lng: number };
 }
 
-const PIN_COLOR = "#722F37";
+const PIN_COLOR = "#dc2626";
 
 /** 半角数字を全角数字(１２３...)に変換する。 */
 function toFullWidthDigits(n: number): string {
