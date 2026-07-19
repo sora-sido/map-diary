@@ -14,10 +14,18 @@ const LOCATION_INTERVAL_MS = 5 * 60 * 1000;
 // 無言で返してくることがある。ここを超える精度の点は実際の現在地とみなさず捨てる。
 const MAX_ACCEPTABLE_ACCURACY_METERS = 500;
 
+// 記録ボタンの周りに表示する、次の取得までの進捗を示す弧のサイズ。
+const RING_SIZE = 34;
+const RING_RADIUS = 16;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
 export function GpsTracker() {
   const [tracking, setTracking] = useState(false);
   const [pointCount, setPointCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // 5分間隔のうち、今どのタイミングかを示す弧をリセットするためのキー。
+  // 取得を試みるたびに値を変え、その円要素を再マウントしてCSSアニメーションを最初から再生する。
+  const [cycleKey, setCycleKey] = useState(0);
   const intervalIdRef = useRef<number | null>(null);
   const router = useRouter();
 
@@ -33,6 +41,7 @@ export function GpsTracker() {
   }, []);
 
   function recordCurrentPosition() {
+    setCycleKey((key) => key + 1);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude, accuracy, speed } = pos.coords;
@@ -98,15 +107,49 @@ export function GpsTracker() {
           {tracking ? `記録中 ${pointCount}` : "記録"}
         </span>
         {tracking ? (
-          <Button
-            size="icon-sm"
-            variant="destructive"
-            className="rounded-full"
-            onClick={stop}
-            aria-label="記録停止"
+          <div
+            className="relative flex items-center justify-center"
+            style={{ width: RING_SIZE, height: RING_SIZE }}
           >
-            <span className="size-2.5 rounded-[2px] bg-current" />
-          </Button>
+            <svg
+              className="pointer-events-none absolute inset-0"
+              width={RING_SIZE}
+              height={RING_SIZE}
+              viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+            >
+              <circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                fill="none"
+                stroke="rgb(239 68 68 / 0.15)"
+                strokeWidth={2}
+              />
+              <circle
+                key={cycleKey}
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                fill="none"
+                stroke="rgb(239 68 68 / 0.55)"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeDasharray={RING_CIRCUMFERENCE}
+                strokeDashoffset={RING_CIRCUMFERENCE}
+                transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+                className="gps-progress-ring"
+              />
+            </svg>
+            <Button
+              size="icon-sm"
+              variant="destructive"
+              className="rounded-full"
+              onClick={stop}
+              aria-label="記録停止"
+            >
+              <span className="size-2.5 rounded-[2px] bg-current" />
+            </Button>
+          </div>
         ) : (
           <Button
             size="icon-sm"

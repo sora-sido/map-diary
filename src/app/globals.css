@@ -153,3 +153,13 @@
 .gm-style .gm-ui-hover-effect:hover {
   opacity: 0.9 !important;
 }
+
+/* 記録ボタン周りの弧: 5分間隔のうち今どのタイミングかを示す */
+@keyframes gps-progress-ring {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.gps-progress-ring {
+  animation: gps-progress-ring 300s linear forwards;
+}
