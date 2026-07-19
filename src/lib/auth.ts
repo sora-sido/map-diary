@@ -19,6 +19,12 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    // 個人利用アプリのため、許可したGoogleアカウント以外はログインさせない。
+    async signIn({ profile }) {
+      const allowedEmail = process.env.ALLOWED_GOOGLE_EMAIL;
+      if (!allowedEmail) return true;
+      return profile?.email === allowedEmail;
+    },
     async jwt({ token, account, profile }) {
       if (account && profile?.email) {
         const dbUser = await prisma.user.upsert({
