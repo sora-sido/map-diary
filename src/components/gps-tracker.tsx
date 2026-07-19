@@ -4,43 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-// 端末によっては、電波状況などでGPSの測位に失敗した後、エラーコールバックすら呼ばれずに
-// watchPositionが無言で更新を止めてしまうことがある(ブラウザ側の既知の挙動)。
-// そのため一定時間コールバックが来なければ監視を強制的に張り直す「ウォッチドッグ」を仕込む。
-const STALE_THRESHOLD_MS = 45_000;
-const WATCHDOG_INTERVAL_MS = 20_000;
+// 常時watchPositionだとバッテリー消費が大きく、端末によっては測位失敗後に
+// 無言で更新が止まることもあるため、一定間隔でgetCurrentPositionを呼ぶ
+// ポーリング方式にしている(失敗しても次の間隔で自然にリトライされる)。
+const LOCATION_INTERVAL_MS = 5 * 60 * 1000;
 
 export function GpsTracker() {
   const [tracking, setTracking] = useState(false);
   const [pointCount, setPointCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const watchdogIdRef = useRef<number | null>(null);
-  const lastUpdateAtRef = useRef<number>(0);
+  const intervalIdRef = useRef<number | null>(null);
   const router = useRouter();
 
-  // ページ離脱・アンマウント時は必ず位置情報の監視を止める
+  // ページ離脱・アンマウント時は必ずポーリングを止める
   // (放置するとタブを閉じるまでバックグラウンドで送信され続けてしまう)。
   useEffect(() => {
     return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      if (watchdogIdRef.current !== null) {
-        window.clearInterval(watchdogIdRef.current);
-        watchdogIdRef.current = null;
+      if (intervalIdRef.current !== null) {
+        window.clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
       }
     };
   }, []);
 
-  function watchPosition() {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
-    const id = navigator.geolocation.watchPosition(
+  function recordCurrentPosition() {
+    navigator.geolocation.getCurrentPosition(
       (pos) => {
-        lastUpdateAtRef.current = Date.now();
+        setError(null);
         const { latitude, longitude, accuracy, speed } = pos.coords;
         fetch("/api/gps", {
           method: "POST",
@@ -55,16 +45,12 @@ export function GpsTracker() {
         })
           .then(() => setPointCount((count) => count + 1))
           .catch(() => {
-            // 送信失敗は無視し、次のポイントを待つ
+            // 送信失敗は無視し、次の間隔を待つ
           });
       },
-      () => {
-        lastUpdateAtRef.current = Date.now();
-        setError("位置情報を取得できませんでした。ブラウザの権限設定を確認してください。");
-      },
-      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 },
+      () => setError("位置情報を取得できませんでした。ブラウザの権限設定を確認してください。"),
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 },
     );
-    watchIdRef.current = id;
   }
 
   function start() {
@@ -74,25 +60,19 @@ export function GpsTracker() {
     }
     setError(null);
     setPointCount(0);
-    lastUpdateAtRef.current = Date.now();
 
-    watchPosition();
-    watchdogIdRef.current = window.setInterval(() => {
-      if (Date.now() - lastUpdateAtRef.current > STALE_THRESHOLD_MS) {
-        watchPosition();
-      }
-    }, WATCHDOG_INTERVAL_MS);
+    recordCurrentPosition();
+    intervalIdRef.current = window.setInterval(
+      recordCurrentPosition,
+      LOCATION_INTERVAL_MS,
+    );
     setTracking(true);
   }
 
   function stop() {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    if (watchdogIdRef.current !== null) {
-      window.clearInterval(watchdogIdRef.current);
-      watchdogIdRef.current = null;
+    if (intervalIdRef.current !== null) {
+      window.clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
     }
     setTracking(false);
     router.refresh();
