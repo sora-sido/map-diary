@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 // ポーリング方式にしている(失敗しても次の間隔で自然にリトライされる)。
 const LOCATION_INTERVAL_MS = 5 * 60 * 1000;
 
+// enableHighAccuracy:trueでも、屋内などでGPS衛星を掴めない場合はブラウザ/OSが
+// Wi-Fi・基地局・IPアドレスからの推定位置(誤差が数百m〜数十kmになりうる)を
+// 無言で返してくることがある。ここを超える精度の点は実際の現在地とみなさず捨てる。
+const MAX_ACCEPTABLE_ACCURACY_METERS = 500;
+
 export function GpsTracker() {
   const [tracking, setTracking] = useState(false);
   const [pointCount, setPointCount] = useState(0);
@@ -30,8 +35,16 @@ export function GpsTracker() {
   function recordCurrentPosition() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setError(null);
         const { latitude, longitude, accuracy, speed } = pos.coords;
+
+        if (accuracy > MAX_ACCEPTABLE_ACCURACY_METERS) {
+          setError(
+            `精度が低い(誤差約${Math.round(accuracy)}m)ため、この位置はスキップしました。`,
+          );
+          return;
+        }
+
+        setError(null);
         fetch("/api/gps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
