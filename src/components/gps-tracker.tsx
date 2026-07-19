@@ -4,11 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
+// 端末によっては、電波状況などでGPSの測位に失敗した後、エラーコールバックすら呼ばれずに
+// watchPositionが無言で更新を止めてしまうことがある(ブラウザ側の既知の挙動)。
+// そのため一定時間コールバックが来なければ監視を強制的に張り直す「ウォッチドッグ」を仕込む。
+const STALE_THRESHOLD_MS = 45_000;
+const WATCHDOG_INTERVAL_MS = 20_000;
+
 export function GpsTracker() {
   const [tracking, setTracking] = useState(false);
   const [pointCount, setPointCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const watchdogIdRef = useRef<number | null>(null);
+  const lastUpdateAtRef = useRef<number>(0);
   const router = useRouter();
 
   // ページ離脱・アンマウント時は必ず位置情報の監視を止める
@@ -19,19 +27,20 @@ export function GpsTracker() {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
+      if (watchdogIdRef.current !== null) {
+        window.clearInterval(watchdogIdRef.current);
+        watchdogIdRef.current = null;
+      }
     };
   }, []);
 
-  function start() {
-    if (!("geolocation" in navigator)) {
-      setError("このブラウザは位置情報に対応していません。");
-      return;
+  function watchPosition() {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
     }
-    setError(null);
-    setPointCount(0);
-
     const id = navigator.geolocation.watchPosition(
       (pos) => {
+        lastUpdateAtRef.current = Date.now();
         const { latitude, longitude, accuracy, speed } = pos.coords;
         fetch("/api/gps", {
           method: "POST",
@@ -49,10 +58,30 @@ export function GpsTracker() {
             // 送信失敗は無視し、次のポイントを待つ
           });
       },
-      () => setError("位置情報を取得できませんでした。ブラウザの権限設定を確認してください。"),
+      () => {
+        lastUpdateAtRef.current = Date.now();
+        setError("位置情報を取得できませんでした。ブラウザの権限設定を確認してください。");
+      },
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 },
     );
     watchIdRef.current = id;
+  }
+
+  function start() {
+    if (!("geolocation" in navigator)) {
+      setError("このブラウザは位置情報に対応していません。");
+      return;
+    }
+    setError(null);
+    setPointCount(0);
+    lastUpdateAtRef.current = Date.now();
+
+    watchPosition();
+    watchdogIdRef.current = window.setInterval(() => {
+      if (Date.now() - lastUpdateAtRef.current > STALE_THRESHOLD_MS) {
+        watchPosition();
+      }
+    }, WATCHDOG_INTERVAL_MS);
     setTracking(true);
   }
 
@@ -60,6 +89,10 @@ export function GpsTracker() {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
+    }
+    if (watchdogIdRef.current !== null) {
+      window.clearInterval(watchdogIdRef.current);
+      watchdogIdRef.current = null;
     }
     setTracking(false);
     router.refresh();
