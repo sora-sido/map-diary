@@ -17,6 +17,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { LoginGate } from "@/components/login-gate";
 import { dummyStays, dummyTrackPoints } from "@/lib/fixtures/dummy-route";
 import { formatDateParam, isSameDay, parseDateParam, today } from "@/lib/dateParam";
+import { formatDistanceMeters } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function HomePage({
   let hasRealData = false;
   let calendarEvents: DateNavEvent[] = [];
   let calendarSyncFailed = false;
+  let totalDistanceMeters = 0;
 
   if (session?.user?.id) {
     try {
@@ -69,6 +71,7 @@ export default async function HomePage({
       trackPoints = result.trackPoints.map((p) => ({ lat: p.lat, lng: p.lng }));
     }
     gaps = result.gaps;
+    totalDistanceMeters = result.totalDistanceMeters;
   }
 
   const usingDummy = !hasRealData && isToday;
@@ -153,6 +156,11 @@ export default async function HomePage({
       {session?.user?.id && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-4">
           <div className="pointer-events-auto flex max-h-[44vh] w-full max-w-2xl flex-col gap-2.5 overflow-y-auto">
+            {hasRealData && totalDistanceMeters > 0 && (
+              <p className="w-fit rounded-full bg-white/60 px-3 py-1 text-xs text-muted-foreground shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
+                本日の移動距離: 約{formatDistanceMeters(totalDistanceMeters)}
+              </p>
+            )}
             <DayDiaryEditor key={dateParam} dateParam={dateParam} />
 
             <div className="rounded-xl bg-white/60 p-2.5 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">

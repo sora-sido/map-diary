@@ -146,6 +146,20 @@ function computeGaps(
  * この再計算で消さずに残す。手動確定済みの時間帯のGPS打点は、二重にクラスタリングして
  * 重複ピンを作らないよう再クラスタリングの対象から除外する。
  */
+/** 時系列順のGPS打点を単純に線分としてつなぎ、その日の大まかな移動距離を合計する。 */
+function computeTotalDistanceMeters(points: { lat: number; lng: number }[]): number {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += haversineMeters(
+      points[i - 1].lat,
+      points[i - 1].lng,
+      points[i].lat,
+      points[i].lng,
+    );
+  }
+  return total;
+}
+
 export async function syncPlaceVisits(
   userId: string,
   targetDate: Date,
@@ -153,6 +167,7 @@ export async function syncPlaceVisits(
   stays: DerivedStay[];
   trackPoints: DerivedTrackPoint[];
   gaps: DerivedGap[];
+  totalDistanceMeters: number;
 }> {
   const dateOnly = startOfDay(targetDate);
   const nextDay = addDays(dateOnly, 1);
@@ -161,6 +176,15 @@ export async function syncPlaceVisits(
     where: { userId, recordedAt: { gte: dateOnly, lt: nextDay } },
     orderBy: { recordedAt: "asc" },
   });
+
+  const totalDistanceMeters = computeTotalDistanceMeters(points);
+  if (points.length > 0) {
+    await prisma.dailyLog.upsert({
+      where: { userId_date: { userId, date: dateOnly } },
+      create: { userId, date: dateOnly, totalDistanceMeters },
+      update: { totalDistanceMeters },
+    });
+  }
 
   // 滞在時間帯と重なるカレンダー予定を後で突き合わせるため、その日の予定を先に取得しておく。
   const dayEvents = await prisma.calendarEvent.findMany({
@@ -197,6 +221,7 @@ export async function syncPlaceVisits(
         recordedAt: p.recordedAt,
       })),
       gaps: computeGaps(sortedStays, points),
+      totalDistanceMeters,
     };
   }
 
@@ -295,5 +320,6 @@ export async function syncPlaceVisits(
       recordedAt: p.recordedAt,
     })),
     gaps: computeGaps(sortedStays, points),
+    totalDistanceMeters,
   };
 }
