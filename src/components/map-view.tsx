@@ -44,11 +44,13 @@ export interface MapGap {
   to: { lat: number; lng: number };
 }
 
-const CIRCLED_DIGITS = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+const PIN_COLOR = "#722F37";
 
-function circledNumber(n: number): string {
-  if (n >= 1 && n <= CIRCLED_DIGITS.length) return CIRCLED_DIGITS[n - 1];
-  return String(n);
+/** 半角数字を全角数字(１２３...)に変換する。 */
+function toFullWidthDigits(n: number): string {
+  return String(n).replace(/[0-9]/g, (d) =>
+    String.fromCharCode(d.charCodeAt(0) + 0xfee0),
+  );
 }
 
 function formatTime(iso: string) {
@@ -183,10 +185,10 @@ export function MapView({
             onClick={() => setSelectedId(stay.id)}
           >
             <Pin
-              background="#18181b"
-              borderColor="#18181b"
+              background={PIN_COLOR}
+              borderColor={PIN_COLOR}
               glyphColor="#ffffff"
-              glyphText={circledNumber(index + 1)}
+              glyphText={toFullWidthDigits(index + 1)}
               scale={1}
             />
           </AdvancedMarker>

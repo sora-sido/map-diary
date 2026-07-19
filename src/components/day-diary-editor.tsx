@@ -9,7 +9,6 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -29,14 +28,14 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
 
   async function save() {
     setSaving(true);
-    setSaved(false);
     try {
       await fetch(`/api/days/${dateParam}/diary`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ note }),
       });
-      setSaved(true);
+      // 保存後は編集中に見えるテキストエリアを開いたままにせず、閲覧用の折りたたみ表示に戻す。
+      setExpanded(false);
     } finally {
       setSaving(false);
     }
@@ -84,19 +83,14 @@ export function DayDiaryEditor({ dateParam }: { dateParam: string }) {
         disabled={loading}
         autoFocus
       />
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          className="h-7 w-fit rounded-full px-3 text-xs"
-          onClick={save}
-          disabled={saving || loading}
-        >
-          {saving ? "保存中..." : "保存"}
-        </Button>
-        {saved && (
-          <span className="text-xs text-muted-foreground">保存しました</span>
-        )}
-      </div>
+      <Button
+        size="sm"
+        className="h-7 w-fit rounded-full px-3 text-xs"
+        onClick={save}
+        disabled={saving || loading}
+      >
+        {saving ? "保存中..." : "保存"}
+      </Button>
     </div>
   );
 }
