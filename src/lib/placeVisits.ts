@@ -31,7 +31,9 @@ export interface DerivedGap {
 }
 
 const STAY_RADIUS_METERS = 120;
-const MIN_STAY_MINUTES = 5;
+// GPSは5分間隔で取得しているため、30分(6回分)以上同じ場所に留まって
+// 初めて滞在とみなす(2〜3点程度の短い留まりで誤ってピンが立つのを防ぐ)。
+const MIN_STAY_MINUTES = 30;
 
 export async function findOrCreateLocation(
   userId: string,
