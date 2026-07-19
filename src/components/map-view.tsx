@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Camera, Clock, MapPin, MessageCircle, X } from "lucide-react";
 import {
@@ -10,7 +10,6 @@ import {
   Map,
   Pin,
   Polyline,
-  useMapsLibrary,
   type MapMouseEvent,
 } from "@vis.gl/react-google-maps";
 import { LocationNoteEditor } from "@/components/location-note-editor";
@@ -60,80 +59,16 @@ function formatTime(iso: string) {
 }
 
 /**
- * GPSが途切れた区間を、Directions(車→ダメなら公共交通機関)で
- * 推定ルートとして補完し、破線のPolylineで描画する。
+ * GPSが途切れた区間を、実際の経路検索(Directions API)は使わずに
+ * 2地点を直線で結ぶ破線として示す。
  */
-function GapRoutes({ gaps }: { gaps: MapGap[] }) {
-  const routesLibrary = useMapsLibrary("routes");
-  const [paths, setPaths] = useState<google.maps.LatLngLiteral[][]>([]);
-
-  useEffect(() => {
-    if (!routesLibrary || gaps.length === 0) {
-      return;
-    }
-    let cancelled = false;
-    const service = new routesLibrary.DirectionsService();
-
-    function tryRoute(gap: MapGap, mode: google.maps.TravelMode) {
-      return new Promise<google.maps.DirectionsResult>((resolve, reject) => {
-        service.route(
-          { origin: gap.from, destination: gap.to, travelMode: mode },
-          (result, status) => {
-            if (status === "OK" && result) resolve(result);
-            else reject(status);
-          },
-        );
-      });
-    }
-
-    async function fetchAll() {
-      const results: google.maps.LatLngLiteral[][] = [];
-      for (const gap of gaps) {
-        try {
-          const result = await tryRoute(
-            gap,
-            google.maps.TravelMode.DRIVING,
-          );
-          results.push(
-            result.routes[0].overview_path.map((p) => ({
-              lat: p.lat(),
-              lng: p.lng(),
-            })),
-          );
-          continue;
-        } catch {
-          // 車で経路が引けない場合は公共交通機関を試す
-        }
-        try {
-          const result = await tryRoute(
-            gap,
-            google.maps.TravelMode.TRANSIT,
-          );
-          results.push(
-            result.routes[0].overview_path.map((p) => ({
-              lat: p.lat(),
-              lng: p.lng(),
-            })),
-          );
-        } catch {
-          // どちらも経路が引けない区間は諦めて何も描かない
-        }
-      }
-      if (!cancelled) setPaths(results);
-    }
-
-    fetchAll();
-    return () => {
-      cancelled = true;
-    };
-  }, [routesLibrary, gaps]);
-
+function GapLines({ gaps }: { gaps: MapGap[] }) {
   return (
     <>
-      {paths.map((path, i) => (
+      {gaps.map((gap, i) => (
         <Polyline
           key={i}
-          path={path}
+          path={[gap.from, gap.to]}
           strokeOpacity={0}
           icons={[
             {
@@ -238,7 +173,7 @@ export function MapView({
           />
         )}
 
-        <GapRoutes key={dateParam} gaps={gaps} />
+        <GapLines gaps={gaps} />
 
         {stays.map((stay, index) => (
           <AdvancedMarker
