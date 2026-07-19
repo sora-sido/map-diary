@@ -14,6 +14,11 @@ const LOCATION_INTERVAL_MS = 5 * 60 * 1000;
 // 無言で返してくることがある。ここを超える精度の点は実際の現在地とみなさず捨てる。
 const MAX_ACCEPTABLE_ACCURACY_METERS = 500;
 
+// 精度が低くて捨てた場合は、5分待たずに短い間隔でリトライする。
+// ただし信号が悪い状態が続く場合に電池を消耗し続けないよう、回数に上限を設ける。
+const RETRY_INTERVAL_MS = 30 * 1000;
+const MAX_LOW_ACCURACY_RETRIES = 3;
+
 // 記録ボタンの周りに表示する、次の取得までの進捗を示す弧のサイズ。
 const RING_SIZE = 34;
 const RING_RADIUS = 16;
@@ -26,19 +31,24 @@ export function GpsTracker() {
   // 5分間隔のうち、今どのタイミングかを示す弧をリセットするためのキー。
   // 取得を試みるたびに値を変え、その円要素を再マウントしてCSSアニメーションを最初から再生する。
   const [cycleKey, setCycleKey] = useState(0);
-  const intervalIdRef = useRef<number | null>(null);
+  const timeoutIdRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
   const router = useRouter();
 
   // ページ離脱・アンマウント時は必ずポーリングを止める
   // (放置するとタブを閉じるまでバックグラウンドで送信され続けてしまう)。
   useEffect(() => {
     return () => {
-      if (intervalIdRef.current !== null) {
-        window.clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
+      if (timeoutIdRef.current !== null) {
+        window.clearTimeout(timeoutIdRef.current);
+        timeoutIdRef.current = null;
       }
     };
   }, []);
+
+  function scheduleNext(delayMs: number) {
+    timeoutIdRef.current = window.setTimeout(recordCurrentPosition, delayMs);
+  }
 
   function recordCurrentPosition() {
     setCycleKey((key) => key + 1);
@@ -47,12 +57,23 @@ export function GpsTracker() {
         const { latitude, longitude, accuracy, speed } = pos.coords;
 
         if (accuracy > MAX_ACCEPTABLE_ACCURACY_METERS) {
-          setError(
-            `精度が低い(誤差約${Math.round(accuracy)}m)ため、この位置はスキップしました。`,
-          );
+          if (retryCountRef.current < MAX_LOW_ACCURACY_RETRIES) {
+            retryCountRef.current += 1;
+            setError(
+              `精度が低い(誤差約${Math.round(accuracy)}m)ため、この位置はスキップしました。30秒後に再試行します。`,
+            );
+            scheduleNext(RETRY_INTERVAL_MS);
+          } else {
+            retryCountRef.current = 0;
+            setError(
+              `精度が低い(誤差約${Math.round(accuracy)}m)状態が続いているため、次の間隔まで待ちます。`,
+            );
+            scheduleNext(LOCATION_INTERVAL_MS);
+          }
           return;
         }
 
+        retryCountRef.current = 0;
         setError(null);
         fetch("/api/gps", {
           method: "POST",
@@ -69,8 +90,13 @@ export function GpsTracker() {
           .catch(() => {
             // 送信失敗は無視し、次の間隔を待つ
           });
+        scheduleNext(LOCATION_INTERVAL_MS);
       },
-      () => setError("位置情報を取得できませんでした。ブラウザの権限設定を確認してください。"),
+      () => {
+        setError("位置情報を取得できませんでした。ブラウザの権限設定を確認してください。");
+        retryCountRef.current = 0;
+        scheduleNext(LOCATION_INTERVAL_MS);
+      },
       { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 },
     );
   }
@@ -82,19 +108,16 @@ export function GpsTracker() {
     }
     setError(null);
     setPointCount(0);
+    retryCountRef.current = 0;
 
     recordCurrentPosition();
-    intervalIdRef.current = window.setInterval(
-      recordCurrentPosition,
-      LOCATION_INTERVAL_MS,
-    );
     setTracking(true);
   }
 
   function stop() {
-    if (intervalIdRef.current !== null) {
-      window.clearInterval(intervalIdRef.current);
-      intervalIdRef.current = null;
+    if (timeoutIdRef.current !== null) {
+      window.clearTimeout(timeoutIdRef.current);
+      timeoutIdRef.current = null;
     }
     setTracking(false);
     router.refresh();
