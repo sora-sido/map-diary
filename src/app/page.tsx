@@ -36,16 +36,22 @@ export default async function HomePage({
   let gaps: MapGap[] = [];
   let hasRealData = false;
   let calendarEvents: DateNavEvent[] = [];
+  let calendarSyncFailed = false;
 
   if (session?.user?.id) {
-    const simpleEvents = isToday
-      ? await syncTodayEvents(session.user.id)
-      : await getCalendarEventsForDate(session.user.id, targetDate);
-    calendarEvents = simpleEvents.map((event) => ({
-      title: event.title,
-      startTime: event.startTime.toISOString(),
-      endTime: event.endTime.toISOString(),
-    }));
+    try {
+      const simpleEvents = isToday
+        ? await syncTodayEvents(session.user.id)
+        : await getCalendarEventsForDate(session.user.id, targetDate);
+      calendarEvents = simpleEvents.map((event) => ({
+        title: event.title,
+        startTime: event.startTime.toISOString(),
+        endTime: event.endTime.toISOString(),
+      }));
+    } catch (error) {
+      console.error("Failed to sync calendar events", error);
+      calendarSyncFailed = true;
+    }
 
     const result = await syncPlaceVisits(session.user.id, targetDate);
     if (result.trackPoints.length > 0 || result.stays.length > 0) {
@@ -120,6 +126,15 @@ export default async function HomePage({
           <div className="pointer-events-auto">
             <DateNav date={targetDate} events={calendarEvents} />
           </div>
+        </div>
+      )}
+
+      {/* カレンダー同期エラー */}
+      {session?.user?.id && calendarSyncFailed && (
+        <div className="pointer-events-none absolute inset-x-0 top-20 z-10 flex justify-center px-4">
+          <p className="pointer-events-auto max-w-sm rounded-full bg-white/60 px-4 py-2 text-center text-xs text-destructive shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
+            Googleカレンダーとの連携が切れています。一度ログアウトして再度ログインしてください。
+          </p>
         </div>
       )}
 
