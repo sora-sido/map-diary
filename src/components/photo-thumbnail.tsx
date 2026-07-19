@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const THUMBNAIL_SIZE = 64;
 const EXPANDED_SIZE = 160;
@@ -45,9 +46,12 @@ export function PhotoThumbnail({ id, url }: { id: string; url: string }) {
         onClick={handleDelete}
         disabled={deleting}
         aria-label="写真を削除"
-        className="absolute -top-1 -left-1 flex size-4 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow transition-opacity group-hover:opacity-100 disabled:opacity-100"
+        className={cn(
+          "absolute -top-1.5 -left-1.5 flex size-6 items-center justify-center rounded-full bg-black/70 text-white shadow transition-opacity group-hover:opacity-100 disabled:opacity-100",
+          expanded ? "opacity-100" : "opacity-0",
+        )}
       >
-        <X className="size-2.5" strokeWidth={2.5} />
+        <X className="size-3.5" strokeWidth={2.5} />
       </button>
     </div>
   );
