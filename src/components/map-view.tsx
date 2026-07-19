@@ -169,9 +169,9 @@ export function MapView({
         {trackPoints.length > 0 && (
           <Polyline
             path={trackPoints}
-            strokeColor="#3b82f6"
-            strokeOpacity={0.9}
-            strokeWeight={4}
+            strokeColor="#111827"
+            strokeOpacity={0.8}
+            strokeWeight={3}
           />
         )}
 

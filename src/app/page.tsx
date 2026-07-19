@@ -9,7 +9,6 @@ import {
   type MapStay,
   type MapTrackPoint,
 } from "@/components/map-view";
-import { Footprints } from "lucide-react";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { PhotoThumbnail } from "@/components/photo-thumbnail";
 import { DateNav, type DateNavEvent } from "@/components/date-nav";
@@ -158,19 +157,13 @@ export default async function HomePage({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-4">
           <div className="pointer-events-auto flex max-h-[44vh] w-full max-w-2xl flex-col gap-2.5 overflow-y-auto">
             {hasRealData && totalDistanceMeters > 0 && (
-              <div className="flex w-fit items-center gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
-                <Footprints className="size-5 text-blue-500" strokeWidth={2} />
-                <div className="flex flex-col leading-tight">
-                  <span className="text-lg font-bold text-foreground">
-                    {formatDistanceMeters(totalDistanceMeters)}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">本日の移動距離</span>
-                </div>
-              </div>
+              <p className="w-fit rounded-full bg-white/60 px-3 py-1 text-xs text-muted-foreground shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
+                本日の移動距離: 約{formatDistanceMeters(totalDistanceMeters)}
+              </p>
             )}
             <DayDiaryEditor key={dateParam} dateParam={dateParam} />
 
-            <div className="rounded-3xl bg-white/80 p-4 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
+            <div className="rounded-xl bg-white/60 p-2.5 shadow-lg ring-1 ring-white/60 backdrop-blur-xl">
               <div className={photos.length > 0 ? "mb-2 flex items-center justify-between" : "flex items-center justify-between"}>
                 <h2 className="text-sm font-medium text-foreground/80">
                   写真{photos.length > 0 && ` (${photos.length})`}
